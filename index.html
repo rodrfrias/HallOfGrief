@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>El Pasillo - Hall of Grief</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <!-- Pantalla de inicio para interacción del usuario (Aviso sensible) -->
+  <div id="overlay">
+    <div class="modal">
+      <h1>EL PASILLO</h1>
+      <p>Esta experiencia explora emocionalmente el proceso del duelo.</p>
+      <p class="subtext">Haz clic en "Comenzar" e interactúa con el entorno para avanzar.</p>
+      <button id="btn-start">Comenzar</button>
+    </div>
+  </div>
+
+  <!-- Interfaz de Retícula FPS e Info -->
+  <div id="crosshair"></div>
+  <div id="ui-prompt"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

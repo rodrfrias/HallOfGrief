@@ -6,36 +6,32 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 //  Utilidades y constantes de la habitación interior de Negación
 // ---------------------------------------------------------------------------
 
-// Inclinación inicial del cuadro (rad). 0 = recto, igual que en la imagen de referencia.
-// Con un valor > 0 arranca torcido y funciona como anomalía "aceptable" (se endereza al interactuar).
 const FRAME_TILT = 0.12;
-
-// Hora a la que quedó detenido el reloj gigante (3:17:41)
 const CLOCK_STOPPED = { h: 3, m: 17, s: 41 };
-
-// Cuánto sobresale (en metros) el cajón del medio de la cómoda al arrancar.
-// Al interactuar se desliza hasta quedar cerrado (0).
 const DRAWER_OUT = 0.07;
 
-// Ajustes finos de luz y reflejos: tocá SOLO estos números para afinar contra la imagen
 const LOOK = {
-    wallGlow: 0.34,       // brillo de los "conos" de luz en las paredes laterales (0-1)
-    wallBottomDark: 0.6,  // oscurecimiento de las paredes hacia el piso (0-1)
-    floorGlow: 1.0,       // intensidad del charco de luz del piso
-    reflection: 0.5,      // opacidad del reflejo de la dalia en el cristal del reloj
-    keyLight: 1.5,        // luz cenital fría
-    backLight: 0.6,       // luz sobre el fondo / reloj
-    vaseLight: 1.3,       // foco frío sobre el jarrón
-    vaseGloss: 1.5,       // intensidad del reflejo del esmalte del jarrón
-    petalGlow: 0.4        // brillo propio de los pétalos de las margaritas
+    wallColor: 0xC9BFAE,
+    ceilingColor: 0xD9D1C3,
+    roomLight: 0.55,
+    reflection: 0.5,
+    vaseLight: 0.9,
+    vaseGloss: 0.35,
+    petalGlow: 0.4,
+    leafGlow: 0.16,
+    sofaGlow: 0.2,
+    tableGloss: 0.55
 };
+
+const ROOM_WIDTH = 3.4;
+const PLANT_FICUS = true;
+const SOFA_SEATS = 2;
 
 const stdMat = (color, roughness = 0.8, metalness = 0.05, extra = {}) =>
     new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
 
 const lerp3 = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 
-// Generador pseudoaleatorio con semilla: el ramo siempre queda armado igual
 const seeded = (seed) => () => {
     seed = (seed + 0x6D2B79F5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
@@ -43,7 +39,6 @@ const seeded = (seed) => () => {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// Altura del jarrón (m): el punto donde se cruzan los tallos queda justo en su boca
 const VASE_HEIGHT = 0.358;
 
 const canvasOf = (w, h) => {
@@ -59,7 +54,6 @@ const texOf = (cv, srgb = true) => {
     return t;
 };
 
-// Caja de bordes redondeados (no depende de addons de three)
 const roundedBox = (w, h, d, r, seg = 6) => {
     const geo = new THREE.BoxGeometry(w, h, d, seg, seg, seg);
     const pos = geo.attributes.position;
@@ -94,9 +88,6 @@ export class DenialRoom {
         this._hookRenderer();
     }
 
-    // Toma la cámara y el canvas del primer render (scene.onBeforeRender), así el arrastre
-    // de las flores se activa solo y, mientras se sostiene, se actualiza justo antes de
-    // dibujar cada cuadro (sin retraso respecto de la cámara).
     _hookRenderer() {
         const scene = this.scene;
         const prev = scene.onBeforeRender;
@@ -104,17 +95,15 @@ export class DenialRoom {
             if (prev) prev.call(scene, renderer, sc, camera, ...rest);
             this._renderHookAt = performance.now();
             if (!this._dragCleanup && this.flowers) this.enableDragging(camera, renderer.domElement);
+            if (!this._bookDragCleanup && this.books) this.enableBookDragging(camera, renderer.domElement);
             if (this._dragTick) this._dragTick(camera);
+            if (this._bookTick) this._bookTick(camera);
         };
     }
 
-    // Textura procedural de la puerta: pintura teal oscura descascarada, óxido, manchas,
-    // rayones, abolladura y grietas. Devuelve { map, bump }:
-    //  - map:   color
-    //  - bump:  relieve (óxido, pintura levantada, hundimientos)
     createDoorTextures() {
         const W = 512;
-        const H = 938; // proporción 1.2 x 2.2
+        const H = 938;
         const mk = () => {
             const cv = document.createElement('canvas');
             cv.width = W;
@@ -125,7 +114,6 @@ export class DenialRoom {
         const c = cc.getContext('2d');
         const b = bc.getContext('2d');
 
-        // Base teal oscuro con degradado vertical (más oscuro hacia abajo)
         const grad = c.createLinearGradient(0, 0, 0, H);
         grad.addColorStop(0, '#12303a');
         grad.addColorStop(0.5, '#0f2a33');
@@ -135,7 +123,6 @@ export class DenialRoom {
         b.fillStyle = '#808080';
         b.fillRect(0, 0, W, H);
 
-        // Grano mate
         for (let i = 0; i < 14000; i++) {
             const x = Math.random() * W;
             const y = Math.random() * H;
@@ -147,7 +134,6 @@ export class DenialRoom {
             b.fillRect(x, y, 2, 2);
         }
 
-        // Paneles hundidos: uno superior grande y otro inferior
         const drawPanel = (x, y, w, h) => {
             c.fillStyle = '#0b2027';
             c.fillRect(x, y, w, h);
@@ -173,14 +159,12 @@ export class DenialRoom {
         drawPanel(62, 70, 388, 470);
         drawPanel(62, 590, 388, 270);
 
-        // Luz fría que cae desde arriba sobre la hoja
         const glow = c.createLinearGradient(0, 0, 0, H * 0.55);
         glow.addColorStop(0, 'rgba(90, 170, 190, 0.12)');
         glow.addColorStop(1, 'rgba(90, 170, 190, 0)');
         c.fillStyle = glow;
         c.fillRect(0, 0, W, H);
 
-        // --- Helpers ---
         const blotch = (x, y, r, rgb, alpha, bumpGray = null, bumpAlpha = 0.25) => {
             const g = c.createRadialGradient(x, y, 0, x, y, r);
             g.addColorStop(0, `rgba(${rgb},${alpha})`);
@@ -212,12 +196,10 @@ export class DenialRoom {
             ctx.closePath();
         };
 
-        // --- Manchas oscuras / mugre general ---
         for (let i = 0; i < 18; i++) {
             blotch(rnd(0, W), rnd(0, H), rnd(30, 90), '0,0,0', rnd(0.15, 0.35));
         }
 
-        // --- Óxido: más abundante hacia el pie de la puerta y en los bordes ---
         const rustTones = ['150,70,25', '120,55,20', '95,42,18', '170,90,35'];
         for (let i = 0; i < 70; i++) {
             const y = H * (1 - Math.pow(Math.random(), 2.2));
@@ -225,22 +207,18 @@ export class DenialRoom {
             const x = edgeBias ? (Math.random() < 0.5 ? rnd(0, 60) : rnd(W - 60, W)) : rnd(0, W);
             blotch(x, y, rnd(14, 70), rustTones[Math.floor(Math.random() * rustTones.length)], rnd(0.25, 0.6), 190, 0.18);
         }
-        // óxido alrededor del picaporte (u≈0.92, v≈0.55) y de la placa
         blotch(468, 512, 85, '140,65,22', 0.55, 190, 0.2);
         blotch(77, 234, 45, '130,60,20', 0.4, 190, 0.15);
-        // esquinas de los paneles
         for (const [px, py] of [[62, 70], [450, 70], [62, 540], [450, 540], [62, 590], [450, 590], [62, 860], [450, 860]]) {
             blotch(px, py, rnd(25, 50), '125,58,20', 0.45, 190, 0.15);
         }
 
-        // Puntitos finos de óxido
         for (let i = 0; i < 5000; i++) {
             const y = H * (1 - Math.pow(Math.random(), 1.8));
             c.fillStyle = `rgba(${150 + Math.floor(rnd(0, 30))},${70 + Math.floor(rnd(0, 20))},25,${rnd(0.15, 0.55)})`;
             c.fillRect(rnd(0, W), y, 2, 2);
         }
 
-        // --- Pintura descascarada: deja ver óxido y metal ---
         const drawPeel = (cx, cy, r) => {
             const outer = jagged(cx, cy, r, 11 + Math.floor(rnd(0, 5)), 0.45);
             const inner = outer.map(([x, y]) => [cx + (x - cx) * rnd(0.3, 0.65), cy + (y - cy) * rnd(0.3, 0.65)]);
@@ -250,15 +228,15 @@ export class DenialRoom {
             c.lineWidth = 5;
             c.stroke();
 
-            c.fillStyle = '#6b3a1e'; // óxido expuesto
+            c.fillStyle = '#6b3a1e';
             trace(c, outer);
             c.fill();
-            c.fillStyle = Math.random() > 0.5 ? '#3a2415' : '#58595a'; // óxido profundo o metal pelado
+            c.fillStyle = Math.random() > 0.5 ? '#3a2415' : '#58595a';
             trace(c, inner);
             c.fill();
 
             trace(c, outer);
-            c.strokeStyle = 'rgba(120,190,200,0.35)'; // borde de pintura levantada
+            c.strokeStyle = 'rgba(120,190,200,0.35)';
             c.lineWidth = 2.5;
             c.stroke();
 
@@ -284,7 +262,6 @@ export class DenialRoom {
             c.fill();
         }
 
-        // --- Chorreaduras de óxido verticales ---
         for (let i = 0; i < 30; i++) {
             const x = rnd(10, W - 10);
             const y0 = rnd(0, H * 0.7);
@@ -298,7 +275,6 @@ export class DenialRoom {
             c.fillRect(x, y0, w, len);
         }
 
-        // --- Rayones y marcas de golpes ---
         for (let i = 0; i < 45; i++) {
             const x = rnd(0, W), y = rnd(0, H);
             const ang = rnd(-0.6, 0.6) + (Math.random() > 0.5 ? 0 : Math.PI / 2);
@@ -317,7 +293,6 @@ export class DenialRoom {
             b.stroke();
         }
 
-        // --- Abolladura grande (golpe) en el panel inferior ---
         const dentX = 300, dentY = 700, dentR = 95;
         const dentGrad = b.createRadialGradient(dentX, dentY, 0, dentX, dentY, dentR);
         dentGrad.addColorStop(0, 'rgba(30,30,30,0.9)');
@@ -328,7 +303,6 @@ export class DenialRoom {
         b.fillRect(dentX - dentR, dentY - dentR, dentR * 2, dentR * 2);
         blotch(dentX, dentY, dentR, '0,0,0', 0.3);
 
-        // --- Grieta larga cruzando la hoja ---
         const drawCrack = (x, y, ang, len, w, depth) => {
             let px = x, py = y, t = 0, ww = w;
             while (t < len) {
@@ -351,7 +325,6 @@ export class DenialRoom {
         drawCrack(140, 120, Math.PI / 2 + 0.2, 380, 3.2, 0);
         drawCrack(420, 610, Math.PI / 2 - 0.35, 260, 2.6, 0);
 
-        // Oscurecimiento al pie de la puerta
         const bottom = c.createLinearGradient(0, H * 0.8, 0, H);
         bottom.addColorStop(0, 'rgba(0, 0, 0, 0)');
         bottom.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
@@ -366,7 +339,6 @@ export class DenialRoom {
         return { map: wrap(cc, true), bump: wrap(bc, false) };
     }
 
-    // Textura para marco y bisagras: negro azulado con óxido y escamas
     createFrameTexture() {
         const S = 256;
         const canvas = document.createElement('canvas');
@@ -401,7 +373,6 @@ export class DenialRoom {
         return texture;
     }
 
-    // Charco de óxido/agua sucia sobre el piso, al pie de la puerta
     createFloorStainTexture() {
         const S = 256;
         const canvas = document.createElement('canvas');
@@ -423,14 +394,12 @@ export class DenialRoom {
     }
 
     buildRoom() {
-        // Ubicación al final del pasillo (pared posterior)
         const doorX = 0;
         const doorZ = -8.0;
         const doorRotationY = 0;
 
         const doorGroup = new THREE.Group();
 
-        // 1. Marco / contramarco: casi negro, grueso, oxidado y con relieve hacia el pasillo
         const frameTex = this.createFrameTexture();
         const doorFrameMat = new THREE.MeshStandardMaterial({
             map: frameTex,
@@ -464,7 +433,6 @@ export class DenialRoom {
         frameTop.position.set(0, openingH + frameThickness / 2, frameZ);
         doorGroup.add(frameTop);
 
-        // 2. Hoja de la puerta: oxidada, descascarada y abollada, pero entera
         const doorGeo = new THREE.BoxGeometry(openingW, openingH, 0.05);
         const doorTex = this.createDoorTextures();
         this.doorMaterial = new THREE.MeshStandardMaterial({
@@ -486,7 +454,6 @@ export class DenialRoom {
         doorGroup.add(this.entryDoor);
         this.interactables.push(this.entryDoor);
 
-        // 3. Picaporte: metal oxidado, pomo torcido
         const handleMat = new THREE.MeshStandardMaterial({ color: 0x6b5445, metalness: 0.7, roughness: 0.65 });
 
         const roseGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.01, 24);
@@ -498,7 +465,7 @@ export class DenialRoom {
         const handleGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.1, 16);
         const handleMesh = new THREE.Mesh(handleGeo, handleMat);
         handleMesh.rotation.x = Math.PI / 2;
-        handleMesh.rotation.y = 0.22; // vástago doblado
+        handleMesh.rotation.y = 0.22;
         handleMesh.position.set(0.5, 1.0, 0.075);
         doorGroup.add(handleMesh);
 
@@ -506,7 +473,6 @@ export class DenialRoom {
         knobMesh.position.set(0.522, 0.99, 0.123);
         doorGroup.add(knobMesh);
 
-        // 4. Placa pequeña en la parte superior izquierda de la hoja (oxidada)
         const plateGeo = new THREE.BoxGeometry(0.1, 0.1, 0.01);
         const plateMat = new THREE.MeshStandardMaterial({ color: 0x2b1a10, roughness: 0.8, metalness: 0.3 });
         const plateMesh = new THREE.Mesh(plateGeo, plateMat);
@@ -514,7 +480,6 @@ export class DenialRoom {
         plateMesh.rotation.z = 0.12;
         doorGroup.add(plateMesh);
 
-        // 5. Bisagras oxidadas, las tres alineadas
         const hingeMat = new THREE.MeshStandardMaterial({ color: 0x5a3a26, metalness: 0.7, roughness: 0.7 });
         const hingeTop = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.02), hingeMat);
         hingeTop.position.set(-0.6, 1.85, 0.04);
@@ -526,12 +491,10 @@ export class DenialRoom {
         hingeBottom.position.set(-0.6, 0.34, 0.04);
         doorGroup.add(hingeBottom);
 
-        // Posicionar y orientar el grupo de la puerta
         doorGroup.position.set(doorX, 0, doorZ);
         doorGroup.rotation.y = doorRotationY;
         this.scene.add(doorGroup);
 
-        // 6. Escombros y astillas de metal/pintura caídos al pie de la puerta (+Z hacia el pasillo)
         const debrisMats = [
             new THREE.MeshStandardMaterial({ color: 0x5a2f1c, roughness: 0.9, metalness: 0.3 }),
             new THREE.MeshStandardMaterial({ color: 0x3a2415, roughness: 0.9, metalness: 0.2 }),
@@ -548,7 +511,6 @@ export class DenialRoom {
             this.scene.add(piece);
         }
 
-        // Mancha de óxido / agua sucia en el piso bajo la puerta
         const stainMat = new THREE.MeshBasicMaterial({
             map: this.createFloorStainTexture(),
             transparent: true,
@@ -559,7 +521,6 @@ export class DenialRoom {
         stain.position.set(doorX, 0.006, doorZ + 0.45);
         this.scene.add(stain);
 
-        // 7. Iluminación fría cian/teal, suave, desde arriba
         const doorSpotLight = new THREE.SpotLight(0x5fa8b8, 1.6);
         doorSpotLight.position.set(doorX, 2.7, doorZ + 0.9);
         doorSpotLight.target.position.set(doorX, 1.2, doorZ);
@@ -569,71 +530,55 @@ export class DenialRoom {
         this.scene.add(doorSpotLight);
         this.scene.add(doorSpotLight.target);
 
-        // Relleno ambiental tenue en el mismo tono
         const doorPointLight = new THREE.PointLight(0x2a6572, 0.55, 3.5);
         doorPointLight.position.set(doorX, 2.2, doorZ + 0.5);
         this.scene.add(doorPointLight);
 
-        // --- HABITACIÓN INTERIOR DE NEGACIÓN (réplica de NegacionRoom.jpg) ---
         this.buildInterior(doorZ);
     }
 
-    // =====================================================================
-    //  INTERIOR DE NEGACIÓN  (réplica de NegacionRoom.jpg)
-    //  Cuarto angosto y alto, teal oscuro, sillón a la derecha, cómoda a la
-    //  izquierda, cuadro en la pared izquierda, puerta
-    //  en la pared derecha y, al fondo, un reloj gigante detenido en el lugar
-    //  de la ventana circular.
-    //
-    //  Convención: "s" = distancia desde la entrada hacia el fondo.
-    //  Mundo: x (izq -, der +), z = doorZ - s.
-    // =====================================================================
     buildInterior(doorZ) {
-        const W = 2.8, H = 4.0, D = 7.0;
+        const W = ROOM_WIDTH, H = 4.0, D = 7.0;
         const halfW = W / 2;
         const Z = (s) => doorZ - s;
         const backZ = Z(D);
         const group = new THREE.Group();
         this.roomGroup = group;
 
-        // Las intensidades se normalizan entre versiones de three (>= r155 usa unidades físicas)
         const modern = parseInt(THREE.REVISION, 10) >= 155;
         const lum = (v) => (modern ? v * Math.PI : v);
 
-        // ---- Superficies: la luz va "horneada" en la textura (emissiveMap) ----
-        const baked = (tex) => new THREE.MeshStandardMaterial({
-            map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1,
-            color: 0x666666, roughness: 0.95, metalness: 0
-        });
+        const wallMat = new THREE.MeshBasicMaterial({ color: LOOK.wallColor });
 
-        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), baked(this.createRoomWallTexture('side', true)));
+        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat);
         leftWall.rotation.y = Math.PI / 2;
         leftWall.position.set(-halfW, H / 2, Z(D / 2));
         group.add(leftWall);
 
-        const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), baked(this.createRoomWallTexture('side', false)));
+        const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat);
         rightWall.rotation.y = -Math.PI / 2;
         rightWall.position.set(halfW, H / 2, Z(D / 2));
         group.add(rightWall);
 
-        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), baked(this.createRoomWallTexture('back', true)));
+        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), wallMat);
         backWall.position.set(0, H / 2, backZ);
         group.add(backWall);
 
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), baked(this.createRoomFloorTexture()));
+        const floorTex = this.createRoomFloorTexture(W, D);
+        floorTex.anisotropy = 8;
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshBasicMaterial({ map: floorTex }));
         floor.rotation.x = -Math.PI / 2;
         floor.position.set(0, 0, Z(D / 2));
         group.add(floor);
 
         const ceiling = new THREE.Mesh(
             new THREE.PlaneGeometry(W, D),
-            stdMat(0x04161a, 0.95, 0, { emissive: 0x041a1d })
+            new THREE.MeshBasicMaterial({ color: LOOK.ceilingColor })
         );
         ceiling.rotation.x = Math.PI / 2;
         ceiling.position.set(0, H, Z(D / 2));
         group.add(ceiling);
 
-        // Zócalo negro en las tres paredes
         const baseMat = stdMat(0x04090b, 0.6, 0.1, { emissive: 0x010304 });
         const bbH = 0.1, bbT = 0.025;
         const bbBack = new THREE.Mesh(new THREE.BoxGeometry(W, bbH, bbT), baseMat);
@@ -644,17 +589,13 @@ export class DenialRoom {
         bbRight.position.set(halfW - bbT / 2, bbH / 2, Z(D / 2));
         group.add(bbBack, bbLeft, bbRight);
 
-        // ---- Mobiliario ----
-        // Cómoda (pared izquierda, el frente mira a +x) y sillón (pared derecha, mira a -x):
-        // comparten la misma distancia "s", así quedan alineados frente a frente
         const sofaS = 3.9;
-        const dresserS = sofaS;
+        const dresserS = 1.5;
 
         const dresser = this.createDresser();
         dresser.position.set(-halfW + 0.25, 0, Z(dresserS));
         group.add(dresser);
 
-        // Cajón del medio entreabierto: es interactuable y se acomoda al hacer click
         this.drawer = dresser.userData.drawer;
         const drawerData = {
             id: 'drawer',
@@ -664,33 +605,21 @@ export class DenialRoom {
         this.drawer.traverse((o) => { o.userData = drawerData; });
         this.interactables.push(this.drawer);
 
-        // Sillón de 3 cuerpos (pared derecha, mira a -x)
         const sofa = this.createSofa();
         sofa.position.set(halfW - 0.415, 0, Z(sofaS));
         group.add(sofa);
 
-        // Puerta en la pared derecha, cerca del fondo, con dos interruptores
-        const door = this.createInteriorDoor();
-        door.position.set(halfW - 0.03, 0, Z(D - 1.0));
-        group.add(door);
-        const plateBlack = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.11, 0.07), stdMat(0x05090a, 0.5, 0.2));
-        plateBlack.position.set(halfW - 0.007, 1.25, Z(D - 1.65));
-        const platePale = new THREE.Mesh(
-            new THREE.BoxGeometry(0.014, 0.11, 0.07),
-            stdMat(0x8cc4bf, 0.5, 0.1, { emissive: 0x143634 })
-        );
-        platePale.position.set(halfW - 0.007, 1.1, Z(D - 2.4));
-        group.add(plateBlack, platePale);
+        const tableX = halfW - 0.415 - 0.4 - 0.2 - 0.31;
+        const coffeeTable = this.createCoffeeTable();
+        coffeeTable.position.set(tableX, 0, Z(sofaS));
+        group.add(coffeeTable);
 
-        // ---- Jarrón vacío junto al sillón + ramo de margaritas "olvidado" sobre la cómoda ----
-        // La inconsistencia: las flores están sobre el mueble y el jarrón, vacío, en el piso.
         const vaseS = 2.42;
         const vasePos = new THREE.Vector3(halfW - 0.43, 0, Z(vaseS));
         const vase = this.createVase();
         vase.position.copy(vasePos);
         group.add(vase);
 
-        // Zona invisible sobre el jarrón: detecta que el ramo se suelta ahí
         const vaseCatcher = new THREE.Mesh(
             new THREE.CylinderGeometry(0.2, 0.2, 0.7, 12),
             new THREE.MeshBasicMaterial({ visible: false })
@@ -726,7 +655,6 @@ export class DenialRoom {
         bouquet.group.traverse((o) => { o.userData = flowerData; });
         this.interactables.push(bouquet.group);
 
-        // ---- Sombras de contacto (falsas, baratas) ----
         const blobTex = this.createBlobTexture();
         const blob = (w, l, x, s, opacity, rotY = 0) => {
             const m = new THREE.Mesh(
@@ -738,13 +666,67 @@ export class DenialRoom {
             m.position.set(x, 0.004, Z(s));
             group.add(m);
         };
-        blob(1.0, 2.0, -halfW + 0.55, dresserS, 0.8);
-        blob(1.15, 2.9, halfW - 0.55, sofaS, 0.85);
-        blob(0.46, 0.46, vasePos.x, vaseS, 0.85);
+        blob(1.0, 2.0, -halfW + 0.55, dresserS, 0.32);
+        blob(1.15, 2.9, halfW - 0.55, sofaS, 0.32);
+        blob(0.46, 0.46, vasePos.x, vaseS, 0.35);
+        blob(0.95, 1.55, tableX, sofaS, 0.28);
 
-        // ---- Anomalía 1: reloj gigante detenido (en lugar de la ventana circular) ----
-        const clock = this.createClock(0.95);
-        clock.group.position.set(0, 1.75, backZ);
+        // ---- Estante al fondo (modificado: doble de ancho W = 1.0m, H = 2.0m, profundidad D = 0.36m para albergar libros dobles) ----
+        const shelf = this.createBookshelf(1.0, H / 2, 0.36);
+        const shelfZ = backZ + shelf.depth / 2 + 0.004;
+        shelf.group.position.set(0, 0, shelfZ);
+        group.add(shelf.group);
+
+        const slots = [];
+        for (const sy of shelf.surfaces) {
+            for (const sx of shelf.slotX) {
+                slots.push({
+                    x: sx,
+                    z: shelfZ + 0.005,
+                    surfaceY: sy,
+                    center: new THREE.Vector3(sx, sy + 0.22, shelfZ + 0.005),
+                    book: null
+                });
+            }
+        }
+        const shelfCatcher = new THREE.Mesh(
+            new THREE.BoxGeometry(shelf.width, shelf.height, shelf.depth + 0.1),
+            new THREE.MeshBasicMaterial({ visible: false })
+        );
+        shelfCatcher.position.set(0, shelf.height / 2, shelfZ + 0.05);
+        group.add(shelfCatcher);
+        this.shelf = { slots, catcher: shelfCatcher };
+
+        this.books = [];
+        // Libros con dimensiones al doble de su tamaño original
+        const bookSpecs = [
+            { color: 0x8a2f2f, t: 0.072, h: 0.42, d: 0.30, x: -0.35, s: D - 0.9, yaw: 0.5 },
+            { color: 0x2f5a3d, t: 0.084, h: 0.40, d: 0.28, x: 0.15, s: D - 1.25, yaw: -0.9 },
+            { color: 0x2f4a7a, t: 0.060, h: 0.38, d: 0.26, x: 0.5, s: D - 0.8, yaw: 2.2 }
+        ];
+        bookSpecs.forEach((spec) => {
+            const bg = this.createBook(spec);
+            const floorPos = new THREE.Vector3(spec.x, spec.t / 2 + 0.002, Z(spec.s));
+            const floorQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, spec.yaw, Math.PI / 2));
+            bg.position.copy(floorPos);
+            bg.quaternion.copy(floorQuat);
+            group.add(bg);
+            const book = { group: bg, t: spec.t, h: spec.h, d: spec.d, floorPos, floorQuat, placed: false, anim: null };
+            const bookData = {
+                id: 'book',
+                prompt: 'Mantén presionado para mover el libro',
+                accepted: false
+            };
+            bg.traverse((o) => { o.userData = bookData; });
+            this.books.push(book);
+            this.interactables.push(bg);
+        });
+        blob(1.2, 0.68, 0, D - 0.1, 0.3);
+
+        // ---- Anomalía 1: reloj detenido (radio = 0.475m, alineado con el sofá) ----
+        const clock = this.createClock(0.475);
+        clock.group.position.set(halfW - 0.001, 2.1, Z(sofaS));
+        clock.group.rotation.y = -Math.PI / 2;
         group.add(clock.group);
         this.clock = clock.face;
         this.clockHands = clock.hands;
@@ -753,17 +735,15 @@ export class DenialRoom {
             prompt: 'Observar reloj detenido (Aceptar anomalía)',
             accepted: false
         };
-        // Todas las piezas comparten el mismo userData, así el raycast funciona
-        // aunque pegue en las agujas o en el cristal
         clock.parts.forEach((p) => { p.userData = clockData; });
         this.clock.userData = clockData;
         this.interactables.push(this.clock);
 
-        // ---- Anomalía 2: cuadro (pared izquierda, sobre la cómoda) ----
+        // ---- Anomalía 2: cuadro ----
         const painting = this.createPainting();
         this.frame = painting.frame;
         this.frame.position.set(-halfW + 0.03, 1.85, Z(dresserS));
-        this.frame.rotation.set(0, Math.PI / 2, FRAME_TILT); // roll local = inclinación en el plano del cuadro
+        this.frame.rotation.set(0, Math.PI / 2, FRAME_TILT);
         const frameData = {
             id: 'frame',
             prompt: 'Inspeccionar cuadro torcido (Aceptar anomalía)',
@@ -774,44 +754,24 @@ export class DenialRoom {
         group.add(this.frame);
         this.interactables.push(this.frame);
 
-        // ---- Iluminación fría (alcance corto para no filtrar luz al pasillo) ----
-        // Cenital fría: forma el charco de luz del piso y da volumen al mobiliario
-        const keyLight = new THREE.SpotLight(0x86dccf, lum(LOOK.keyLight), 9, 0.9, 1, 0);
-        keyLight.position.set(0, H - 0.2, Z(3.4));
-        keyLight.target.position.set(0, 0, Z(3.9));
-        group.add(keyLight, keyLight.target);
+        for (const s of [2.6, 4.8]) {
+            const fill = new THREE.PointLight(0xffffff, lum(LOOK.roomLight), 5.2, 0);
+            fill.position.set(0, H - 0.6, Z(s));
+            group.add(fill);
+        }
 
-        // Contraluz desde el fondo: marca el borde superior del sillón y la cómoda
-        const rimLight = new THREE.SpotLight(0x5fc4bb, lum(0.7), 8, 0.8, 1, 0);
-        rimLight.position.set(0.2, H - 0.3, Z(D - 0.8));
-        rimLight.target.position.set(0, 0.6, Z(sofaS));
-        group.add(rimLight, rimLight.target);
-
-        // Luz suave sobre el fondo / reloj
-        const backSpot = new THREE.SpotLight(0x6fbfb8, lum(LOOK.backLight), 8, 0.55, 1, 0);
-        backSpot.position.set(0, H - 0.4, Z(2.2));
-        backSpot.target.position.set(0, 1.7, backZ);
-        group.add(backSpot, backSpot.target);
-
-        // Foco frío sobre el jarrón (viene de arriba a la izquierda, como en la referencia)
-        const vaseSpot = new THREE.SpotLight(0xcff0ea, lum(LOOK.vaseLight), 5, 0.38, 0.9, 0);
+        const vaseSpot = new THREE.SpotLight(0xfff4e6, lum(LOOK.vaseLight), 5, 0.38, 0.9, 0);
         vaseSpot.position.set(vasePos.x - 0.8, 2.4, vasePos.z + 0.9);
         vaseSpot.target.position.set(vasePos.x, 0.4, vasePos.z);
         group.add(vaseSpot, vaseSpot.target);
 
-        // Luz suave sobre el ramo mientras está sobre la cómoda
-        const dresserGlow = new THREE.PointLight(0xcfeee8, lum(0.4), 1.7, 0);
+        const dresserGlow = new THREE.PointLight(0xffffff, lum(0.3), 1.7, 0);
         dresserGlow.position.set(dresser.position.x + 0.45, 1.5, lyingT.z + 0.25);
         group.add(dresserGlow);
 
         this.scene.add(group);
     }
 
-    // ---------------------------------------------------------------------
-    //  Reloj gigante detenido: cilindro de madera oscura (como el marco del
-    //  cuadro y la cómoda), cara negra como el ojo de buey de la referencia,
-    //  marcas y agujas color crema/coral (los colores de la dalia).
-    // ---------------------------------------------------------------------
     createClock(R) {
         const group = new THREE.Group();
         const parts = [];
@@ -821,13 +781,11 @@ export class DenialRoom {
         const cream = stdMat(0xf1d9c9, 0.45, 0.25, { emissive: 0x3a2a22 });
         const coral = stdMat(0xe2704f, 0.5, 0.1, { emissive: 0x4a1a0e });
 
-        // Cuerpo profundo (el "hueco" circular)
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.07, R + 0.07, 0.12, 96), walnut);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.035, R + 0.035, 0.06, 96), walnut);
         body.rotation.x = Math.PI / 2;
-        body.position.z = 0.06;
+        body.position.z = 0.03;
         add(body);
 
-        // Cara
         const faceTex = this.createClockFaceTexture();
         const face = new THREE.Mesh(
             new THREE.CircleGeometry(R, 96),
@@ -836,18 +794,16 @@ export class DenialRoom {
                 roughness: 0.35, metalness: 0
             })
         );
-        face.position.z = 0.122;
+        face.position.z = 0.061;
         add(face);
 
-        // Bisel oscuro
         const bezel = new THREE.Mesh(
-            new THREE.TorusGeometry(R + 0.035, 0.035, 16, 96),
+            new THREE.TorusGeometry(R + 0.0175, 0.0175, 16, 96),
             stdMat(0x1c2b2d, 0.35, 0.6, { emissive: 0x050c0d })
         );
-        bezel.position.z = 0.125;
+        bezel.position.z = 0.0625;
         add(bezel);
 
-        // Agujas (apuntan a +y en rotación 0; se rota en -z para ir en sentido horario)
         const makeHand = (len, w, tail, mat, depth, z) => {
             const s = new THREE.Shape();
             s.moveTo(-w / 2, -tail);
@@ -862,25 +818,23 @@ export class DenialRoom {
         };
         const { h, m, s } = CLOCK_STOPPED;
         const TAU = Math.PI * 2;
-        const hourHand = makeHand(R * 0.52, 0.08, 0.06, cream, 0.010, 0.130);
-        const minuteHand = makeHand(R * 0.82, 0.055, 0.07, cream, 0.010, 0.142);
-        const secondHand = makeHand(R * 0.90, 0.012, R * 0.18, coral, 0.004, 0.154);
+        const hourHand = makeHand(R * 0.52, 0.04, 0.03, cream, 0.005, 0.065);
+        const minuteHand = makeHand(R * 0.82, 0.0275, 0.035, cream, 0.005, 0.071);
+        const secondHand = makeHand(R * 0.90, 0.006, R * 0.18, coral, 0.002, 0.077);
         hourHand.rotation.z = -(((h % 12) + m / 60) / 12) * TAU;
         minuteHand.rotation.z = -((m + s / 60) / 60) * TAU;
         secondHand.rotation.z = -(s / 60) * TAU;
 
-        // Tapa central coral (el "corazón" de la flor)
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 24), coral);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.015, 24), coral);
         cap.rotation.x = Math.PI / 2;
-        cap.position.z = 0.162;
+        cap.position.z = 0.081;
         add(cap);
 
-        // Cristal: lleva el reflejo de la dalia (abajo a la derecha, como en la ventana de la imagen)
         const glass = new THREE.Mesh(
-            new THREE.CircleGeometry(R + 0.01, 64),
+            new THREE.CircleGeometry(R + 0.005, 64),
             new THREE.MeshBasicMaterial({ map: this.createClockGlassTexture(), transparent: true, depthWrite: false })
         );
-        glass.position.z = 0.175;
+        glass.position.z = 0.0875;
         add(glass);
 
         return { group, face, parts, hands: { hourHand, minuteHand, secondHand } };
@@ -891,7 +845,6 @@ export class DenialRoom {
         const cv = canvasOf(S, S);
         const c = cv.getContext('2d');
 
-        // Vacío negro con un leve resplandor teal, como el ojo de buey de la referencia
         const g = c.createRadialGradient(c0, c0, 0, c0, c0, c0);
         g.addColorStop(0, '#04161a');
         g.addColorStop(0.7, '#020b0d');
@@ -899,14 +852,12 @@ export class DenialRoom {
         c.fillStyle = g;
         c.fillRect(0, 0, S, S);
 
-        // Aro interior fino
         c.strokeStyle = 'rgba(60,150,150,0.25)';
         c.lineWidth = 3;
         c.beginPath();
         c.arc(c0, c0, c0 * 0.94, 0, Math.PI * 2);
         c.stroke();
 
-        // Marcas: 12 horas (la de las 12 en coral) y 48 minutos
         c.translate(c0, c0);
         c.lineCap = 'round';
         for (let i = 0; i < 60; i++) {
@@ -927,16 +878,14 @@ export class DenialRoom {
         return texOf(cv);
     }
 
-    // Capa de cristal del reloj (transparente): reflejo de la dalia + brillo diagonal
     createClockGlassTexture() {
         const S = 1024, c0 = S / 2;
         const cv = canvasOf(S, S);
         const c = cv.getContext('2d');
         c.beginPath();
         c.arc(c0, c0, c0, 0, Math.PI * 2);
-        c.clip(); // el reflejo se corta en el borde del cristal, igual que en la imagen
+        c.clip();
 
-        // Reflejo desenfocado de la dalia
         c.save();
         c.filter = 'blur(7px)';
         this.drawDahliaCanvas(c, S * 0.88, S * 0.48, S * 0.11, LOOK.reflection);
@@ -959,14 +908,12 @@ export class DenialRoom {
         }
         c.restore();
 
-        // Brillo diagonal tenue del cristal
         const gl = c.createLinearGradient(0, 0, S, S);
         gl.addColorStop(0.0, 'rgba(160,230,225,0.10)');
         gl.addColorStop(0.35, 'rgba(160,230,225,0)');
         c.fillStyle = gl;
         c.fillRect(0, 0, S, S);
 
-        // Reflejo del borde superior izquierdo
         c.strokeStyle = 'rgba(120,200,195,0.14)';
         c.lineWidth = 6;
         c.beginPath();
@@ -975,13 +922,10 @@ export class DenialRoom {
         return texOf(cv);
     }
 
-    // ---------------------------------------------------------------------
-    //  Cómoda de madera oscura con tres cajones
-    // ---------------------------------------------------------------------
     createDresser() {
         const g = new THREE.Group();
         const body = stdMat(0xffffff, 0.55, 0.08, { map: this.createWoodTexture([66, 36, 26]), emissive: 0x120804 });
-        const top = stdMat(0xffffff, 0.28, 0.15, { map: this.createWoodTexture([104, 62, 38]), emissive: 0x160a05 }); // tapa más pulida: refleja la luz cenital
+        const top = stdMat(0xffffff, 0.28, 0.15, { map: this.createWoodTexture([104, 62, 38]), emissive: 0x160a05 });
         const dark = stdMat(0x120a07, 0.7, 0.1);
         const brass = stdMat(0x9a7a4a, 0.4, 0.8, { emissive: 0x1a1308 });
 
@@ -995,8 +939,6 @@ export class DenialRoom {
         tp.position.y = legH + bodyH + 0.02;
         g.add(tp);
 
-        // Frentes de cajón (+x) con línea de sombra entre ellos.
-        // Cada cajón es un grupo propio para poder animarlo; el del medio queda entreabierto.
         const frontX = bodyW / 2;
         const innerH = bodyH - 0.1;
         const gap = 0.014;
@@ -1013,7 +955,6 @@ export class DenialRoom {
             front.position.set(frontX + 0.004, 0, 0);
             const handle = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.028, 0.16), brass);
             handle.position.set(frontX + 0.024, 0, 0);
-            // Caja del cajón: queda dentro del mueble y rellena el hueco cuando el frente sale
             const tray = new THREE.Mesh(new THREE.BoxGeometry(0.12, dH - 0.03, bodyL - 0.14), trayMat);
             tray.position.set(frontX - 0.065, 0, 0);
             drawer.add(front, handle, tray);
@@ -1025,7 +966,6 @@ export class DenialRoom {
             }
         }
 
-        // Patas cortas
         for (const sx of [-1, 1]) {
             for (const sz of [-1, 1]) {
                 const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.018, legH, 10), dark);
@@ -1033,72 +973,209 @@ export class DenialRoom {
                 g.add(leg);
             }
         }
-        g.userData.topY = legH + bodyH + 0.04; // cara superior de la tapa
+        g.userData.topY = legH + bodyH + 0.04;
         return g;
     }
 
-    // ---------------------------------------------------------------------
-    //  Sillón de 3 cuerpos, terciopelo teal, patas de madera (respaldo en +x)
-    // ---------------------------------------------------------------------
     createSofa() {
         const g = new THREE.Group();
-        // Terciopelo con "sheen": el borde de los cojines atrapa la luz (requiere three >= r136)
-        const sheen = new THREE.Color(0x7fd6cf);
-        const velvet = new THREE.MeshPhysicalMaterial({
-            color: 0x2b7c7e, roughness: 0.92, metalness: 0, emissive: 0x07262a,
-            sheen: 1, sheenRoughness: 0.55, sheenColor: sheen
+        const tex = this.createLinenTextures();
+        const fabric = (tint = 0xffffff, sheen = 0.7) => new THREE.MeshPhysicalMaterial({
+            color: tint, map: tex.map, bumpMap: tex.bump, bumpScale: 0.6,
+            roughness: 0.95, metalness: 0,
+            emissive: 0xffffff, emissiveMap: tex.map, emissiveIntensity: LOOK.sofaGlow,
+            sheen, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xfff3dc)
         });
-        const velvetDark = new THREE.MeshPhysicalMaterial({
-            color: 0x1f6264, roughness: 0.92, metalness: 0, emissive: 0x051c1f,
-            sheen: 0.8, sheenRoughness: 0.6, sheenColor: sheen
-        });
-        const wood = stdMat(0x3a2418, 0.55, 0.1);
+        const linen = fabric();
+        const linenDeep = fabric(0xdcd3c3, 0.5);
+        const shadow = stdMat(0x17110c, 0.9, 0);
+
         const len = 2.3, dep = 0.8;
+        const armW = 0.24, floorGap = 0.07, baseTop = 0.3;
+        const inner = len - armW * 2;
+        const cw = inner / SOFA_SEATS;
 
-        for (const sx of [-1, 1]) {
-            for (const sz of [-1, 1]) {
-                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.14, 10), wood);
-                leg.position.set(sx * (dep / 2 - 0.1), 0.07, sz * (len / 2 - 0.12));
-                g.add(leg);
-            }
-        }
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(dep - 0.22, floorGap + 0.02, len - 0.5), shadow);
+        plinth.position.y = (floorGap + 0.02) / 2;
+        g.add(plinth);
 
-        const base = new THREE.Mesh(roundedBox(dep, 0.2, len, 0.05), velvetDark);
-        base.position.y = 0.24; // tapa de la base en y = 0.34
+        const base = new THREE.Mesh(roundedBox(dep - 0.04, baseTop - floorGap, inner + 0.1, 0.04), linenDeep);
+        base.position.y = (baseTop + floorGap) / 2;
         g.add(base);
 
-        const cw = (len - 0.32) / 3;
-        for (let i = 0; i < 3; i++) {
-            const z = (i - 1) * cw;
-            const seat = new THREE.Mesh(roundedBox(0.6, 0.17, cw - 0.02, 0.06), velvet);
-            seat.position.set(-0.08, 0.425, z);
-            g.add(seat);
-            const back = new THREE.Mesh(roundedBox(0.2, 0.5, cw - 0.02, 0.07), velvet);
-            back.position.set(dep / 2 - 0.12, 0.68, z);
-            back.rotation.z = -0.1; // se reclina hacia la pared
-            g.add(back);
+        for (const sz of [-1, 1]) {
+            const arm = new THREE.Mesh(roundedBox(dep, 0.7 - floorGap, armW, 0.07), linenDeep);
+            arm.position.set(0, floorGap + (0.7 - floorGap) / 2, sz * (len / 2 - armW / 2));
+            g.add(arm);
         }
 
-        for (const sz of [-1, 1]) {
-            const arm = new THREE.Mesh(roundedBox(dep - 0.04, 0.46, 0.16, 0.06), velvetDark);
-            arm.position.set(0, 0.53, sz * (len / 2 - 0.08));
-            g.add(arm);
+        const backFrame = new THREE.Mesh(roundedBox(0.12, 0.5, inner + 0.02, 0.04), linenDeep);
+        backFrame.position.set(dep / 2 - 0.06, 0.55, 0);
+        g.add(backFrame);
+
+        for (let i = 0; i < SOFA_SEATS; i++) {
+            const z = (i - (SOFA_SEATS - 1) / 2) * cw;
+            const seat = new THREE.Mesh(roundedBox(0.6, 0.17, cw - 0.015, 0.07), linen);
+            seat.position.set(-0.08, 0.375, z);
+            g.add(seat);
+            const back = new THREE.Mesh(roundedBox(0.26, 0.46, cw - 0.015, 0.08), linen);
+            back.position.set(dep / 2 - 0.145, 0.55, z);
+            back.rotation.z = -0.08;
+            g.add(back);
         }
         return g;
     }
 
-    // ---------------------------------------------------------------------
-    //  Jarrón de cerámica esmaltada teal: cuerpo ovoide, cuello corto y borde
-    //  levemente abierto. El esmalte refleja un "softbox" (envMap procedural) para
-    //  dar la franja brillante del hombro; el interior se oscurece con vertex colors.
-    // ---------------------------------------------------------------------
+    createLinenTextures() {
+        const S = 512;
+        const cc = canvasOf(S, S), bc = canvasOf(S, S);
+        const c = cc.getContext('2d'), b = bc.getContext('2d');
+        c.fillStyle = '#d9ccb3';
+        c.fillRect(0, 0, S, S);
+        b.fillStyle = '#808080';
+        b.fillRect(0, 0, S, S);
+
+        for (let i = 0; i < S; i += 2) {
+            const dark = Math.random() > 0.5;
+            const a = rnd(0.03, 0.11);
+            c.fillStyle = dark ? `rgba(120,100,70,${a})` : `rgba(255,248,232,${a})`;
+            c.fillRect(i, 0, 1, S);
+            b.fillStyle = dark ? `rgba(0,0,0,${a * 1.6})` : `rgba(255,255,255,${a * 1.6})`;
+            b.fillRect(i, 0, 1, S);
+            const dark2 = Math.random() > 0.5;
+            const a2 = rnd(0.03, 0.11);
+            c.fillStyle = dark2 ? `rgba(120,100,70,${a2})` : `rgba(255,248,232,${a2})`;
+            c.fillRect(0, i, S, 1);
+            b.fillStyle = dark2 ? `rgba(0,0,0,${a2 * 1.6})` : `rgba(255,255,255,${a2 * 1.6})`;
+            b.fillRect(0, i, S, 1);
+        }
+
+        for (let i = 0; i < 520; i++) {
+            const x = rnd(0, S), y = rnd(0, S), l = rnd(8, 46), horiz = Math.random() > 0.5;
+            const light = Math.random() > 0.45;
+            c.fillStyle = light ? `rgba(255,248,232,${rnd(0.1, 0.22)})` : `rgba(110,90,60,${rnd(0.08, 0.18)})`;
+            b.fillStyle = light ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.2)';
+            const wd = rnd(1, 2.4);
+            if (horiz) { c.fillRect(x, y, l, wd); b.fillRect(x, y, l, wd); }
+            else { c.fillRect(x, y, wd, l); b.fillRect(x, y, wd, l); }
+        }
+
+        for (let i = 0; i < 40; i++) {
+            const x = rnd(0, S), y = rnd(0, S), r = rnd(30, 90);
+            const gr = c.createRadialGradient(x, y, 0, x, y, r);
+            const light = Math.random() > 0.5;
+            gr.addColorStop(0, light ? 'rgba(255,246,228,0.07)' : 'rgba(120,98,66,0.06)');
+            gr.addColorStop(1, light ? 'rgba(255,246,228,0)' : 'rgba(120,98,66,0)');
+            c.fillStyle = gr;
+            c.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        for (let i = 0; i < 9000; i++) {
+            c.fillStyle = Math.random() > 0.5 ? `rgba(110,90,60,${rnd(0.03, 0.08)})` : `rgba(255,250,238,${rnd(0.03, 0.08)})`;
+            c.fillRect(rnd(0, S), rnd(0, S), 1.5, 1.5);
+        }
+        const map = texOf(cc);
+        const bump = texOf(bc, false);
+        for (const t of [map, bump]) {
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            t.repeat.set(2, 2);
+            t.anisotropy = 8;
+        }
+        return { map, bump };
+    }
+
+    createCoffeeTable() {
+        const g = new THREE.Group();
+        const L = 1.2, Dp = 0.62, H = 0.34;
+        const topT = 0.065, botT = 0.045, plinthH = 0.05, endT = 0.05, backT = 0.03;
+        const innerH = H - topT - plinthH - botT;
+
+        const env = this.createVaseEnvTexture();
+        const sideTex = this.createWalnutTexture();
+        const topTex = this.createWalnutTexture();
+        topTex.center.set(0.5, 0.5);
+        topTex.rotation = Math.PI / 2;
+        const walnut = (map, rough, coat, envI) => new THREE.MeshPhysicalMaterial({
+            map, color: 0xffffff, roughness: rough, metalness: 0.02,
+            clearcoat: coat, clearcoatRoughness: 0.3,
+            emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.08,
+            envMap: env, envMapIntensity: envI
+        });
+        const bodyMat = walnut(sideTex, 0.5, 0.2, LOOK.tableGloss * 0.6);
+        const topMat = walnut(topTex, 0.34, 0.7, LOOK.tableGloss);
+        const darkMat = stdMat(0x120b07, 0.8, 0.05);
+
+        const add = (geo, mat, x, y, z) => {
+            const m = new THREE.Mesh(geo, mat);
+            m.position.set(x, y, z);
+            g.add(m);
+            return m;
+        };
+        add(new THREE.BoxGeometry(Dp - 0.14, plinthH, L - 0.2), darkMat, 0, plinthH / 2, 0);
+        add(roundedBox(Dp, botT, L, 0.01, 4), bodyMat, 0, plinthH + botT / 2, 0);
+        const yMid = plinthH + botT + innerH / 2;
+        for (const sz of [-1, 1]) {
+            add(roundedBox(Dp, innerH + 0.02, endT, 0.01, 4), bodyMat, 0, yMid, sz * (L / 2 - endT / 2));
+        }
+        add(roundedBox(backT, innerH + 0.02, L - endT * 2 + 0.02, 0.01, 4), bodyMat, Dp / 2 - backT / 2, yMid, 0);
+        add(roundedBox(Dp + 0.03, topT, L + 0.03, 0.014, 5),
+            [bodyMat, bodyMat, topMat, bodyMat, bodyMat, bodyMat], 0, H - topT / 2, 0);
+
+        const shadeMat = () => new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+        const backShade = new THREE.Mesh(new THREE.PlaneGeometry(L - endT * 2, innerH), shadeMat());
+        backShade.rotation.y = -Math.PI / 2;
+        backShade.position.set(Dp / 2 - backT - 0.002, yMid, 0);
+        g.add(backShade);
+        const floorShade = new THREE.Mesh(new THREE.PlaneGeometry(Dp - backT, L - endT * 2), shadeMat());
+        floorShade.rotation.x = -Math.PI / 2;
+        floorShade.position.set(-backT / 2, plinthH + botT + 0.002, 0);
+        g.add(floorShade);
+
+        g.userData.topY = H;
+        return g;
+    }
+
+    createWalnutTexture() {
+        const S = 512;
+        const cv = canvasOf(S, S);
+        const c = cv.getContext('2d');
+        c.fillStyle = 'rgb(98,62,42)';
+        c.fillRect(0, 0, S, S);
+        for (let i = 0; i < 14; i++) {
+            const y = rnd(0, S), h = rnd(20, 70);
+            const g = c.createLinearGradient(0, y - h, 0, y + h);
+            const dark = Math.random() > 0.5;
+            const mid = dark ? `rgba(40,22,12,${rnd(0.12, 0.26)})` : `rgba(160,108,70,${rnd(0.08, 0.18)})`;
+            const edge = dark ? 'rgba(40,22,12,0)' : 'rgba(160,108,70,0)';
+            g.addColorStop(0, edge);
+            g.addColorStop(0.5, mid);
+            g.addColorStop(1, edge);
+            c.fillStyle = g;
+            c.fillRect(0, y - h, S, h * 2);
+        }
+        for (let i = 0; i < 220; i++) {
+            const y = rnd(0, S);
+            const dark = Math.random() > 0.4;
+            c.strokeStyle = dark ? `rgba(30,16,8,${rnd(0.08, 0.22)})` : `rgba(190,140,100,${rnd(0.03, 0.08)})`;
+            c.lineWidth = rnd(0.5, 1.6);
+            const ph = rnd(0, 6.28), amp = rnd(0.6, 3.2), fr = rnd(0.008, 0.02);
+            c.beginPath();
+            c.moveTo(0, y);
+            for (let x = 0; x <= S; x += 16) c.lineTo(x, y + Math.sin(x * fr + ph) * amp);
+            c.stroke();
+        }
+        const t = texOf(cv);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.anisotropy = 8;
+        return t;
+    }
+
     createVase() {
         const prof = [
-            [0, 0], [0.045, 0], [0.072, 0.002], [0.088, 0.012], [0.108, 0.04], [0.131, 0.09], [0.14, 0.15],
-            [0.131, 0.21], [0.102, 0.258], [0.07, 0.295], [0.052, 0.318], [0.05, 0.334], [0.058, 0.35],
-            [0.0645, 0.3575], [0.0605, 0.3595], [0.057, 0.3565],
-            [0.048, 0.34], [0.0435, 0.322], [0.05, 0.298], [0.078, 0.262], [0.11, 0.214], [0.125, 0.15],
-            [0.118, 0.09], [0.095, 0.045], [0.055, 0.03], [0.02, 0.028], [0, 0.028]
+            [0, 0], [0.06, 0], [0.09, 0.003], [0.115, 0.022], [0.145, 0.065], [0.168, 0.125], [0.178, 0.19],
+            [0.17, 0.25], [0.15, 0.3], [0.13, 0.337], [0.124, 0.352],
+            [0.1255, 0.3575], [0.1225, 0.3595], [0.1175, 0.3575],
+            [0.113, 0.345], [0.118, 0.32], [0.136, 0.27], [0.152, 0.21], [0.15, 0.14],
+            [0.126, 0.075], [0.085, 0.04], [0.04, 0.03], [0, 0.028]
         ];
         const curve = new THREE.CatmullRomCurve3(prof.map(([r, y]) => new THREE.Vector3(r, y, 0)), false, 'centripetal');
         const pts = curve.getPoints(180).map((p) => new THREE.Vector2(Math.max(0, p.x), p.y));
@@ -1110,42 +1187,74 @@ export class DenialRoom {
         const colors = new Float32Array(geo.attributes.position.count * 3);
         for (let i = 0; i < geo.attributes.position.count; i++) {
             const j = i % n;
-            const f = j <= jLip ? 1 : 0.5 - 0.38 * ((j - jLip) / (n - 1 - jLip)); // interior oscuro
+            const f = j <= jLip ? 1 : 0.5 - 0.38 * ((j - jLip) / (n - 1 - jLip));
             colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = f;
         }
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
+        const tex = this.createPlanterTexture();
         const mat = new THREE.MeshPhysicalMaterial({
-            color: 0x35918c, roughness: 0.32, metalness: 0, emissive: 0x03201f,
-            clearcoat: 1, clearcoatRoughness: 0.06,
+            color: 0xffffff, map: tex, bumpMap: tex, bumpScale: 0.4,
+            roughness: 0.8, metalness: 0, emissive: 0x060606,
             envMap: this.createVaseEnvTexture(), envMapIntensity: LOOK.vaseGloss,
             vertexColors: true
         });
-        return new THREE.Mesh(geo, mat);
+        const pot = new THREE.Mesh(geo, mat);
+
+        const soil = new THREE.Mesh(
+            new THREE.CircleGeometry(0.118, 40),
+            new THREE.MeshStandardMaterial({ color: 0x15100c, roughness: 1, metalness: 0 })
+        );
+        soil.rotation.x = -Math.PI / 2;
+        soil.position.y = 0.305;
+        pot.add(soil);
+        return pot;
     }
 
-    // Entorno equirectangular: fondo teal oscuro y un softbox arriba a la derecha de la
-    // cámara (la que mira hacia -z), que es donde la referencia tiene el brillo del jarrón
+    createPlanterTexture() {
+        const S = 256;
+        const cv = canvasOf(S, S);
+        const c = cv.getContext('2d');
+        c.fillStyle = '#252526';
+        c.fillRect(0, 0, S, S);
+        for (let i = 0; i < 9000; i++) {
+            c.fillStyle = Math.random() > 0.5 ? `rgba(0,0,0,${rnd(0.08, 0.25)})` : `rgba(150,150,150,${rnd(0.03, 0.09)})`;
+            c.fillRect(rnd(0, S), rnd(0, S), rnd(1, 2.4), rnd(1, 2.4));
+        }
+        for (let i = 0; i < 12; i++) {
+            const x = rnd(0, S), y = rnd(0, S), r = rnd(30, 80);
+            const g = c.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(120,120,120,0.05)');
+            g.addColorStop(1, 'rgba(120,120,120,0)');
+            c.fillStyle = g;
+            c.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        const t = texOf(cv);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(4, 2);
+        return t;
+    }
+
     createVaseEnvTexture() {
         const W = 512, H = 256;
         const cv = canvasOf(W, H);
         const c = cv.getContext('2d');
         const g = c.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2c6a6c');
-        g.addColorStop(0.5, '#0d2a2d');
-        g.addColorStop(1, '#030d0f');
+        g.addColorStop(0, '#9a9a96');
+        g.addColorStop(0.5, '#3a3a3a');
+        g.addColorStop(1, '#0c0c0c');
         c.fillStyle = g;
         c.fillRect(0, 0, W, H);
 
         const box = (x, y, w, h, a) => {
             c.save();
             c.filter = 'blur(5px)';
-            c.fillStyle = `rgba(228,255,250,${a})`;
+            c.fillStyle = `rgba(255,255,255,${a})`;
             c.fillRect(x - w / 2, y - h / 2, w, h);
             c.restore();
         };
-        box(0.452 * W, 0.287 * H, 0.05 * W, 0.17 * H, 1);   // franja principal
-        box(0.12 * W, 0.4 * H, 0.025 * W, 0.2 * H, 0.35);   // contraluz tenue
+        box(0.452 * W, 0.287 * H, 0.05 * W, 0.17 * H, 1);
+        box(0.12 * W, 0.4 * H, 0.025 * W, 0.2 * H, 0.35);
 
         const t = new THREE.CanvasTexture(cv);
         t.mapping = THREE.EquirectangularReflectionMapping;
@@ -1153,22 +1262,18 @@ export class DenialRoom {
         return t;
     }
 
-    // ---------------------------------------------------------------------
-    //  Margaritas: pétalo alargado con punta redondeada, textura con nervaduras,
-    //  disco central abombado de polen. Cada flor lleva dos capas de pétalos.
-    // ---------------------------------------------------------------------
     createPetalGeometry() {
         const geo = new THREE.PlaneGeometry(1, 1, 4, 16);
         const pos = geo.attributes.position;
         const smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
         for (let i = 0; i < pos.count; i++) {
-            const u = pos.getY(i) + 0.5;   // 0 base -> 1 punta
-            const v = pos.getX(i) * 2;     // -1..1 a lo ancho
+            const u = pos.getY(i) + 0.5;
+            const v = pos.getX(i) * 2;
             const ww = u < 0.78
                 ? 0.3 + 0.7 * smooth(u / 0.32)
                 : Math.sqrt(Math.max(0, 1 - Math.pow((u - 0.78) / 0.22, 2)));
             const x = v * 0.5 * ww;
-            const z = 0.1 * u * u + 0.06 * v * v * ww;   // leve curvatura + borde enrollado
+            const z = 0.1 * u * u + 0.06 * v * v * ww;
             pos.setXYZ(i, x, u, z);
         }
         geo.computeVertexNormals();
@@ -1179,7 +1284,6 @@ export class DenialRoom {
         const w = 64, h = 256;
         const cv = canvasOf(w, h);
         const c = cv.getContext('2d');
-        // arriba del canvas = punta del pétalo; abajo = base (junto al disco)
         const g = c.createLinearGradient(0, 0, 0, h);
         g.addColorStop(0, '#f6f5ef');
         g.addColorStop(0.45, '#fdfdfa');
@@ -1207,7 +1311,6 @@ export class DenialRoom {
         const w = 256, h = 128;
         const cv = canvasOf(w, h);
         const c = cv.getContext('2d');
-        // arriba del canvas = polo del domo (centro de la flor); abajo = borde
         const g = c.createLinearGradient(0, 0, 0, h);
         g.addColorStop(0, '#c4a53a');
         g.addColorStop(0.5, '#e5a21f');
@@ -1224,12 +1327,65 @@ export class DenialRoom {
         return texOf(cv);
     }
 
-    // ---------------------------------------------------------------------
-    //  Ramo de 10 margaritas. Se arma en el marco del "punto de atadura" T:
-    //  +y hacia las flores. Tiene dos poses que se mezclan con "blend":
-    //   0 = tirado sobre la cómoda (flores apiladas, tallos en horizontal)
-    //   1 = parado, con los tallos cruzándose en T y entrando al cuello del jarrón
-    // ---------------------------------------------------------------------
+    createLeafGeometry() {
+        const geo = new THREE.PlaneGeometry(1, 1, 6, 14);
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            const u = pos.getY(i) + 0.5;
+            const v = pos.getX(i) * 2;
+            const ww = Math.pow(Math.sin(Math.PI * Math.pow(u, 0.72)), 0.85);
+            const x = v * 0.5 * ww;
+            const z = 0.12 * v * v * ww - 0.2 * u * u;
+            pos.setXYZ(i, x, u, z);
+        }
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    createLeafTexture() {
+        const w = 128, h = 256;
+        const cv = canvasOf(w, h);
+        const c = cv.getContext('2d');
+        const g = c.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, '#2a6430');
+        g.addColorStop(0.5, '#33753a');
+        g.addColorStop(1, '#4b8a3e');
+        c.fillStyle = g;
+        c.fillRect(0, 0, w, h);
+        for (let i = 0; i < 14; i++) {
+            const x = rnd(0, w), y = rnd(0, h), r = rnd(14, 40);
+            const light = Math.random() > 0.5;
+            const rg = c.createRadialGradient(x, y, 0, x, y, r);
+            rg.addColorStop(0, light ? 'rgba(120,170,80,0.28)' : 'rgba(10,50,25,0.3)');
+            rg.addColorStop(1, light ? 'rgba(120,170,80,0)' : 'rgba(10,50,25,0)');
+            c.fillStyle = rg;
+            c.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        c.lineCap = 'round';
+        c.strokeStyle = 'rgba(176,214,128,0.75)';
+        c.lineWidth = 3;
+        c.beginPath();
+        c.moveTo(w / 2, h);
+        c.lineTo(w / 2, h * 0.06);
+        c.stroke();
+        c.strokeStyle = 'rgba(170,208,120,0.35)';
+        c.lineWidth = 1.2;
+        for (let k = 1; k <= 7; k++) {
+            const y = h * (0.92 - k * 0.105);
+            for (const sx of [-1, 1]) {
+                c.beginPath();
+                c.moveTo(w / 2, y);
+                c.quadraticCurveTo(w / 2 + sx * w * 0.2, y - h * 0.03, w / 2 + sx * w * 0.44, y - h * 0.13);
+                c.stroke();
+            }
+        }
+        for (let i = 0; i < 1200; i++) {
+            c.fillStyle = Math.random() > 0.5 ? `rgba(10,40,20,${rnd(0.03, 0.08)})` : `rgba(190,230,150,${rnd(0.02, 0.06)})`;
+            c.fillRect(rnd(0, w), rnd(0, h), 1.5, 1.5);
+        }
+        return texOf(cv);
+    }
+
     createBouquet() {
         const N = 10, TAU = Math.PI * 2;
         const rng = seeded(11);
@@ -1243,18 +1399,20 @@ export class DenialRoom {
             color: 0xf4f1e6, roughness: 0.78, metalness: 0, side: THREE.DoubleSide
         });
         const discGeo = new THREE.SphereGeometry(0.0165, 24, 8, 0, TAU, 0, Math.PI / 2);
-        discGeo.rotateX(Math.PI / 2);        // el domo mira a +z
+        discGeo.rotateX(Math.PI / 2);
         discGeo.scale(1, 1, 0.55);
         const discMat = new THREE.MeshStandardMaterial({
             map: this.createDiscTexture(), roughness: 0.85, metalness: 0, emissive: 0x3a2606
         });
-        const stemMat = stdMat(0x16241b, 0.6, 0, { emissive: 0x050a07 });
+        const stemMat = PLANT_FICUS
+            ? stdMat(0x75665a, 0.85, 0, { emissive: 0x15100b })
+            : stdMat(0x16241b, 0.6, 0, { emissive: 0x050a07 });
 
         const layers = [
             { n: 22, len: [0.043, 0.052], z: 0, off: 0, tilt: [-0.3, 0.18], w: 0.28 },
             { n: 13, len: [0.036, 0.044], z: -0.004, off: 0.5, tilt: [-0.55, -0.1], w: 0.26 }
         ];
-        const makeHead = () => {
+        const makeDaisyHead = () => {
             const head = new THREE.Group();
             const dummy = new THREE.Object3D();
             dummy.rotation.order = 'ZXY';
@@ -1283,24 +1441,66 @@ export class DenialRoom {
             return head;
         };
 
+        const leafGeo = PLANT_FICUS ? this.createLeafGeometry() : null;
+        const leafTex = PLANT_FICUS ? this.createLeafTexture() : null;
+        const leafMat = PLANT_FICUS ? new THREE.MeshStandardMaterial({
+            map: leafTex, emissiveMap: leafTex, emissive: 0xffffff, emissiveIntensity: LOOK.leafGlow,
+            color: 0xffffff, roughness: 0.42, metalness: 0, side: THREE.DoubleSide
+        }) : null;
+        const rl = seeded(97);
+        const rr = (a, b) => a + rl() * (b - a);
+        const makeLeafHead = () => {
+            const nL = 6;
+            const head = new THREE.Group();
+            const mesh = new THREE.InstancedMesh(leafGeo, leafMat, nL);
+            const m = new THREE.Matrix4();
+            const X = new THREE.Vector3(), Y = new THREE.Vector3(), N = new THREE.Vector3();
+            const Zc = new THREE.Vector3(0, 0, 1), tmp = new THREE.Vector3();
+            const col = new THREE.Color();
+            for (let k = 0; k < nL; k++) {
+                const terminal = k === 0;
+                const a = terminal ? 0 : ((k - 1) / (nL - 1)) * TAU + rr(-0.4, 0.4);
+                const t = terminal ? 0.12 : rr(0.55, 1.25);
+                Y.set(Math.sin(t) * Math.cos(a), Math.sin(t) * Math.sin(a), Math.cos(t));
+                N.copy(Zc).addScaledVector(Y, -Zc.dot(Y)).normalize();
+                X.crossVectors(Y, N).normalize();
+                const roll = rr(-0.35, 0.35);
+                tmp.copy(X).multiplyScalar(Math.cos(roll)).addScaledVector(N, Math.sin(roll));
+                N.multiplyScalar(Math.cos(roll)).addScaledVector(X, -Math.sin(roll));
+                X.copy(tmp);
+                const len = rr(0.09, 0.13);
+                m.makeBasis(X, Y, N);
+                m.scale(new THREE.Vector3(len * rr(0.8, 0.95), len, len));
+                m.setPosition(Y.x * 0.01, Y.y * 0.01, Y.z * 0.01);
+                mesh.setMatrixAt(k, m);
+                const v = rr(0.8, 1.1);
+                const warm = rr(0, 0.18);
+                mesh.setColorAt(k, col.setRGB(v * (1 + warm), v * (1 + warm * 0.6), v * (1 - warm)));
+            }
+            mesh.instanceMatrix.needsUpdate = true;
+            mesh.instanceColor.needsUpdate = true;
+            mesh.frustumCulled = false;
+            head.add(mesh);
+            return head;
+        };
+        const makeHead = PLANT_FICUS ? makeLeafHead : makeDaisyHead;
+        const daisyDraws = layers.reduce((acc, L) => acc + L.n * 5, 0);
+
         const V = (x, y, z) => new THREE.Vector3(x, y, z);
         const items = [];
         for (let i = 0; i < N; i++) {
             const phi = i * 2.39996 + r(-0.25, 0.25);
 
-            // Pose parada: domo de flores sobre la boca del jarrón
             const alpha = 0.05 + 0.62 * Math.sqrt(i / (N - 1)) + r(-0.03, 0.03);
             const len = 0.46 - 0.12 * (alpha / 0.7) + r(-0.02, 0.02);
             const Pv = V(Math.sin(alpha) * Math.cos(phi), Math.cos(alpha), Math.sin(alpha) * Math.sin(phi)).multiplyScalar(len);
             const Dv = Pv.clone().normalize().add(V(0, 0.35, 0)).add(V(r(-0.08, 0.08), 0, r(-0.08, 0.08))).normalize();
 
-            // Pose tirada: flores apiladas sobre la tapa, mirando hacia arriba
             const rho = Math.sqrt((i + 0.5) / N);
             const lx = 0.16 * rho * Math.cos(phi);
             const Pl = V(lx, 0.03 + 0.03 * (1 - rho) + r(0, 0.02), 0.27 + 0.19 * rho * Math.sin(phi));
             const Dl = V((lx / 0.16) * 0.22, 1, 0.22 + r(-0.1, 0.1)).normalize();
 
-            // Los tallos se atan juntos: por debajo de T forman un haz fino
             const ba = r(0, TAU), br = 0.022 * Math.sqrt(rng());
             const bx = Math.cos(ba) * br, bz = Math.sin(ba) * br;
             const by = (bz + 0.022) * 0.6;
@@ -1315,6 +1515,7 @@ export class DenialRoom {
                 Pl.clone().multiplyScalar(0.5).add(bow).add(V(0, 0.012, 0)), Pl.clone().addScaledVector(Dl, -0.01)
             ];
 
+            if (PLANT_FICUS) for (let q = 0; q < daisyDraws; q++) rng();
             const head = makeHead();
             head.scale.setScalar(r(0.92, 1.12));
             const stem = new THREE.Mesh(new THREE.BufferGeometry(), stemMat);
@@ -1324,7 +1525,6 @@ export class DenialRoom {
         return { group, items };
     }
 
-    // Coloca cabezas y reconstruye los tallos mezclando las dos poses (blend 0..1)
     _applyBouquetPose(blend) {
         const e = blend * blend * (3 - 2 * blend);
         const Z = new THREE.Vector3(0, 0, 1);
@@ -1338,7 +1538,7 @@ export class DenialRoom {
             f.head.quaternion.setFromUnitVectors(Z, dir).multiply(qRoll.setFromAxisAngle(Z, f.roll));
             const pts = f.Cl.map((c, k) => c.clone().lerp(f.Cv[k], e));
             f.stem.geometry.dispose();
-            f.stem.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 22, 0.0042, 5, false);
+            f.stem.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 22, PLANT_FICUS ? 0.0055 : 0.0042, 5, false);
         }
     }
 
@@ -1374,15 +1574,6 @@ export class DenialRoom {
         requestAnimationFrame(step);
     }
 
-    // ---------------------------------------------------------------------
-    //  Arrastrar el ramo: click izquierdo sostenido sobre las flores y se las lleva
-    //  "en la mano", delante de la cámara, mientras caminás y mirás. Al acercarlas al
-    //  jarrón (o apuntarlo con la mira) se imantan; al soltar encajan solas. Si se
-    //  sueltan en otro lado, vuelven a la cómoda.
-    //  Se activa solo (ver _hookRenderer). Con el mouse bloqueado usa la mira del
-    //  centro de la pantalla; sin bloqueo, el puntero. options.crosshair = true fuerza
-    //  la mira del centro. "room.isDragging" es true mientras se sostiene el ramo.
-    // ---------------------------------------------------------------------
     enableDragging(camera, domElement, uiPromptCallback, options = {}) {
         this.disableDragging();
         const st = this.flowers;
@@ -1408,8 +1599,6 @@ export class DenialRoom {
             return rc.intersectObject(st.group, true)[0];
         };
 
-        // Un paso del arrastre: las flores van a "dist" metros de la cámara, siguiendo la
-        // mira; cerca del jarrón (o apuntándolo) se imantan sobre su boca.
         const tick = (cam) => {
             if (!drag) return;
             const now = performance.now();
@@ -1419,7 +1608,7 @@ export class DenialRoom {
             cam.updateMatrixWorld();
             rc.setFromCamera(ndc, cam);
             target.copy(rc.ray.direction).multiplyScalar(drag.dist).add(rc.ray.origin);
-            target.y -= 0.3; // el punto de atadura queda debajo de las flores
+            target.y -= 0.3;
             st.vaseCatcher.updateMatrixWorld(true);
             drag.overVase = rc.intersectObject(st.vaseCatcher, false).length > 0
                 || target.distanceTo(st.vaseT) < 0.45;
@@ -1431,7 +1620,7 @@ export class DenialRoom {
             st.blend = Math.min(1, st.blend + dt / 0.3);
             this._flushBouquet();
         };
-        // Respaldo por si el render no pasa por scene.onBeforeRender
+
         const loop = () => {
             if (!drag) return;
             if (performance.now() - (this._renderHookAt || 0) > 100) tick(camera);
@@ -1451,7 +1640,7 @@ export class DenialRoom {
             this._dragTick = tick;
             domElement.style.cursor = 'grabbing';
             if (!document.pointerLockElement) {
-                try { domElement.setPointerCapture(e.pointerId); } catch (err) { /* sin captura */ }
+                try { domElement.setPointerCapture(e.pointerId); } catch (err) { }
             }
             lastT = performance.now();
             requestAnimationFrame(loop);
@@ -1505,13 +1694,233 @@ export class DenialRoom {
     }
 
     disableDragging() {
+        this.disableBookDragging();
         if (this._dragCleanup) {
             this._dragCleanup();
             this._dragCleanup = null;
         }
     }
 
-    // Dalia dibujada en canvas (para el cuadro y el reflejo del reloj)
+    // Estante de madera oscura (W = 1.0m, H = 2.0m, D = 0.36m para acomodar los libros de doble tamaño)
+    createBookshelf(W = 1.0, H = 2.0, D = 0.36) {
+        const T = 0.02;
+        const surfaces = [H * 0.15, H * 0.45, H * 0.75];
+        // 3 posiciones horizontales redistribuidas para el ancho de 1 metro
+        const slotX = [-0.28, 0, 0.28];
+        const g = new THREE.Group();
+        const wood = stdMat(0xffffff, 0.55, 0.08, { map: this.createWoodTexture([58, 32, 22]), emissive: 0x100804 });
+        const add = (w, h, d, x, y, z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wood);
+            m.position.set(x, y, z);
+            g.add(m);
+            return m;
+        };
+        add(T, H, D, -(W / 2 - T / 2), H / 2, 0);                  // lateral izquierdo
+        add(T, H, D, W / 2 - T / 2, H / 2, 0);                     // lateral derecho
+        add(W - T * 2, H, 0.01, 0, H / 2, -D / 2 + 0.005);         // fondo
+        for (const sy of surfaces) add(W - T * 2, T, D - 0.01, 0, sy - T / 2, 0.005); // estantes
+        add(W, T, D, 0, H - T / 2, 0);                             // tapa
+        add(W - T * 2, 0.03, D - 0.04, 0, 0.015, 0);               // zócalo hundido
+        return { group: g, width: W, height: H, depth: D, surfaces, slotX };
+    }
+
+    createBook({ color, t, h, d }) {
+        const g = new THREE.Group();
+        const c = 0.004;
+        const cover = stdMat(color, 0.7, 0.05, { emissive: new THREE.Color(color).multiplyScalar(0.12) });
+        const pages = stdMat(0xe8dcc0, 0.9, 0, { emissive: 0x2a2418 });
+        const gold = stdMat(0xc9a35a, 0.45, 0.6, { emissive: 0x201808 });
+        const add = (w, hh, dd, mat, x, y, z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, dd), mat);
+            m.position.set(x, y, z);
+            g.add(m);
+        };
+        add(c, h, d, cover, t / 2 - c / 2, 0, 0);
+        add(c, h, d, cover, -t / 2 + c / 2, 0, 0);
+        add(t, h, c, cover, 0, 0, d / 2 - c / 2);
+        add(t - c * 2, h - 0.008, d - c - 0.003, pages, 0, 0, (0.003 - c) / 2);
+        add(t + 0.002, 0.012, c + 0.002, gold, 0, h * 0.22, d / 2 - c / 2);
+        add(t + 0.002, 0.008, c + 0.002, gold, 0, -h * 0.3, d / 2 - c / 2);
+        return g;
+    }
+
+    _slotPos(slot, book) {
+        return new THREE.Vector3(slot.x, slot.surfaceY + book.h / 2 + 0.001, slot.z);
+    }
+
+    _tweenBook(book, posEnd, quatEnd, duration, done) {
+        if (book.anim) book.anim.cancelled = true;
+        const anim = { cancelled: false };
+        book.anim = anim;
+        const p0 = book.group.position.clone();
+        const q0 = book.group.quaternion.clone();
+        const t0 = performance.now();
+        const step = (now) => {
+            if (anim.cancelled) return;
+            const k = Math.min(1, Math.max(0, (now - t0) / (duration * 1000)));
+            const e = k * k * (3 - 2 * k);
+            book.group.position.lerpVectors(p0, posEnd, e);
+            book.group.quaternion.copy(q0).slerp(quatEnd, e);
+            if (k < 1) {
+                requestAnimationFrame(step);
+            } else {
+                book.anim = null;
+                if (done) done();
+            }
+        };
+        requestAnimationFrame(step);
+    }
+
+    enableBookDragging(camera, domElement, uiPromptCallback, options = {}) {
+        this.disableBookDragging();
+        const books = this.books;
+        const sh = this.shelf;
+        const say = (msg) => { (uiPromptCallback || this._ui || (() => {}))(msg); };
+        const rc = new THREE.Raycaster();
+        const ndc = new THREE.Vector2();
+        const target = new THREE.Vector3();
+        const baseCursor = domElement.style.cursor;
+        const useCrosshair = () => !!options.crosshair || !!document.pointerLockElement;
+        const clamp = THREE.MathUtils.clamp;
+        const upright = new THREE.Quaternion();
+        const halfW = ROOM_WIDTH / 2;
+        const bounds = { minX: -halfW + 0.15, maxX: halfW - 0.15, minZ: sh.catcher.position.z + 0.1, maxZ: sh.catcher.position.z + 6.7 };
+        let drag = null;
+        let lastT = 0;
+
+        const setNdc = (e) => {
+            if (useCrosshair()) { ndc.set(0, 0); return; }
+            const rect = domElement.getBoundingClientRect();
+            ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+        };
+        const pickBook = (cam) => {
+            cam.updateMatrixWorld();
+            rc.setFromCamera(ndc, cam);
+            const groups = books.filter((b) => !b.placed).map((b) => b.group);
+            groups.forEach((gr) => gr.updateMatrixWorld(true));
+            const h = rc.intersectObjects(groups, true)[0];
+            if (!h) return null;
+            let o = h.object;
+            while (o && !books.some((b) => b.group === o)) o = o.parent;
+            const book = books.find((b) => b.group === o);
+            return book ? { book, distance: h.distance } : null;
+        };
+        const nearestSlot = () => {
+            sh.catcher.updateMatrixWorld(true);
+            const hit = rc.intersectObject(sh.catcher, false)[0];
+            const P = hit ? hit.point : target;
+            let best = null;
+            let bd = hit ? Infinity : 0.25;
+            for (const s of sh.slots) {
+                if (s.book) continue;
+                const d = P.distanceTo(s.center);
+                if (d < bd) { bd = d; best = s; }
+            }
+            return best;
+        };
+
+        const tick = (cam) => {
+            if (!drag) return;
+            const now = performance.now();
+            const dt = Math.min(0.05, (now - lastT) / 1000);
+            lastT = now;
+            if (useCrosshair()) ndc.set(0, 0);
+            cam.updateMatrixWorld();
+            rc.setFromCamera(ndc, cam);
+            target.copy(rc.ray.direction).multiplyScalar(drag.dist).add(rc.ray.origin);
+            target.x = clamp(target.x, bounds.minX, bounds.maxX);
+            target.z = clamp(target.z, bounds.minZ, bounds.maxZ);
+            target.y = clamp(target.y, 0.12, 1.9);
+            drag.slot = nearestSlot();
+            const b = drag.book;
+            const goal = drag.slot ? this._slotPos(drag.slot, b) : target;
+            b.group.position.lerp(goal, 1 - Math.exp(-dt * 18));
+            b.group.quaternion.slerp(upright, 1 - Math.exp(-dt * 10));
+        };
+
+        const loop = () => {
+            if (!drag) return;
+            if (performance.now() - (this._renderHookAt || 0) > 100) tick(camera);
+            requestAnimationFrame(loop);
+        };
+
+        const onDown = (e) => {
+            if (drag || this.isDragging || e.button !== 0) return;
+            setNdc(e);
+            const p = pickBook(camera);
+            if (!p) return;
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            if (p.book.anim) { p.book.anim.cancelled = true; p.book.anim = null; }
+            drag = { book: p.book, dist: clamp(p.distance, 0.7, 2.0), slot: null };
+            this.isDraggingBook = true;
+            this._bookTick = tick;
+            domElement.style.cursor = 'grabbing';
+            if (!document.pointerLockElement) {
+                try { domElement.setPointerCapture(e.pointerId); } catch (err) { }
+            }
+            lastT = performance.now();
+            requestAnimationFrame(loop);
+        };
+
+        const onMove = (e) => {
+            if (document.pointerLockElement && !options.crosshair) return;
+            if (!document.pointerLockElement) setNdc(e);
+            if (!drag && !this.isDragging && !document.pointerLockElement && e.target === domElement) {
+                domElement.style.cursor = pickBook(camera) ? 'grab' : baseCursor;
+            }
+        };
+
+        const onUp = () => {
+            if (!drag) return;
+            const { book, slot } = drag;
+            drag = null;
+            this.isDraggingBook = false;
+            this._bookTick = null;
+            domElement.style.cursor = baseCursor;
+            if (slot && !slot.book) {
+                slot.book = book;
+                book.placed = true;
+                const idx = this.interactables.indexOf(book.group);
+                if (idx >= 0) this.interactables.splice(idx, 1);
+                this._tweenBook(book, this._slotPos(slot, book), upright, 0.25, () => {
+                    const left = books.filter((b) => !b.placed).length;
+                    say(left === 0
+                        ? 'Todos los libros están en el estante. Cada cosa en su lugar.'
+                        : 'Acomodas el libro en el estante.');
+                });
+            } else {
+                this._tweenBook(book, book.floorPos, book.floorQuat, 0.5);
+            }
+        };
+
+        document.addEventListener('pointerdown', onDown, { capture: true });
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('pointercancel', onUp);
+        window.addEventListener('blur', onUp);
+        this._bookDragCleanup = () => {
+            document.removeEventListener('pointerdown', onDown, { capture: true });
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+            window.removeEventListener('blur', onUp);
+            domElement.style.cursor = baseCursor;
+            drag = null;
+            this.isDraggingBook = false;
+            this._bookTick = null;
+        };
+    }
+
+    disableBookDragging() {
+        if (this._bookDragCleanup) {
+            this._bookDragCleanup();
+            this._bookDragCleanup = null;
+        }
+    }
+
     drawDahliaCanvas(c, cx, cy, R, alpha = 1) {
         c.save();
         c.translate(cx, cy);
@@ -1539,10 +1948,6 @@ export class DenialRoom {
         c.restore();
     }
 
-    // ---------------------------------------------------------------------
-    //  Cuadro: marco de madera oscura + lienzo con la dalia reflejada
-    //  Devuelve { frame, parts }; "frame" es la malla interactuable.
-    // ---------------------------------------------------------------------
     createPainting() {
         const fw = 0.72, fh = 0.96, fd = 0.05;
         const frame = new THREE.Mesh(
@@ -1560,7 +1965,6 @@ export class DenialRoom {
         art.position.z = fd / 2 + 0.002;
         frame.add(art);
 
-        // Capa de cristal con brillo diagonal
         const glass = new THREE.Mesh(
             new THREE.PlaneGeometry(fw - 0.1, fh - 0.1),
             new THREE.MeshBasicMaterial({ map: this.createGlassSheenTexture(), transparent: true, depthWrite: false })
@@ -1570,8 +1974,6 @@ export class DenialRoom {
         return { frame, parts: [art, glass] };
     }
 
-    // Lo que se ve "dentro" del cuadro: reflejo de la pared iluminada arriba,
-    // penumbra abajo y la dalia reflejada, ligeramente por debajo del centro
     createPaintingTexture() {
         const w = 384, h = 512;
         const cv = canvasOf(w, h);
@@ -1591,7 +1993,6 @@ export class DenialRoom {
         c.fillStyle = glow;
         c.fillRect(0, 0, w, h);
 
-        // Tallo y hojas debajo de la flor
         c.strokeStyle = '#2a7a3e';
         c.lineWidth = 8;
         c.beginPath();
@@ -1612,7 +2013,6 @@ export class DenialRoom {
 
         this.drawDahliaCanvas(c, w * 0.55, h * 0.55, w * 0.36, 0.95);
 
-        // Viñeta del lienzo
         const vg = c.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, h * 0.7);
         vg.addColorStop(0, 'rgba(0,0,0,0)');
         vg.addColorStop(1, 'rgba(0,0,0,0.35)');
@@ -1621,7 +2021,6 @@ export class DenialRoom {
         return texOf(cv);
     }
 
-    // Brillo diagonal de vidrio (capa transparente)
     createGlassSheenTexture() {
         const cv = canvasOf(128, 256);
         const c = cv.getContext('2d');
@@ -1637,44 +2036,6 @@ export class DenialRoom {
         return texOf(cv);
     }
 
-
-    // ---------------------------------------------------------------------
-    //  Puerta decorativa de la pared derecha (mismo teal que la pared)
-    // ---------------------------------------------------------------------
-    createInteriorDoor() {
-        const g = new THREE.Group();
-        const dw = 0.9, dh = 2.1;
-        const teal = stdMat(0x2a7477, 0.7, 0.05, { emissive: 0x0a2c30 });
-        const frameM = stdMat(0x0f3a3f, 0.6, 0.1, { emissive: 0x041417 });
-        const metal = stdMat(0x0a0f10, 0.4, 0.7);
-
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.05, dh, dw), teal);
-        leaf.position.y = dh / 2;
-        g.add(leaf);
-
-        for (const sz of [-1, 1]) {
-            const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, dh + 0.08, 0.07), frameM);
-            post.position.set(0, (dh + 0.08) / 2, sz * (dw / 2 + 0.035));
-            g.add(post);
-        }
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, dw + 0.14), frameM);
-        head.position.y = dh + 0.04;
-        g.add(head);
-
-        // Manija del lado del frente (z local +)
-        const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 20), metal);
-        rose.rotation.z = Math.PI / 2;
-        rose.position.set(-0.035, 1.0, 0.32);
-        g.add(rose);
-        const lever = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.016, 0.11), metal);
-        lever.position.set(-0.065, 1.0, 0.27);
-        g.add(lever);
-        return g;
-    }
-
-    // ---------------------------------------------------------------------
-    //  Texturas
-    // ---------------------------------------------------------------------
     createWoodTexture(base) {
         const S = 256;
         const cv = canvasOf(S, S);
@@ -1696,148 +2057,118 @@ export class DenialRoom {
         return t;
     }
 
-    // Paredes: degradé vertical (más luz en el tercio alto), oscurecimiento hacia
-    // la entrada, grano de revoque. kind: 'side' | 'back'.
-    // towardBack: la coordenada u de la plano crece hacia el fondo (pared izquierda).
-    createRoomWallTexture(kind, towardBack = true) {
-        const w = kind === 'back' ? 512 : 1024;
-        const h = kind === 'back' ? 732 : 576;
+    createRoomFloorTexture(W, D) {
+        const ppm = 280;
+        const w = Math.round(W * ppm), h = Math.round(D * ppm);
         const cv = canvasOf(w, h);
         const c = cv.getContext('2d');
-
-        const g = c.createLinearGradient(0, 0, 0, h);
-        if (kind === 'back') {
-            g.addColorStop(0.0, '#07262b');
-            g.addColorStop(0.3, '#10444a');
-            g.addColorStop(0.55, '#1a5a5e');
-            g.addColorStop(0.8, '#1c5f60');
-            g.addColorStop(0.95, '#17504f');
-            g.addColorStop(1.0, '#0a2f31');
-        } else {
-            g.addColorStop(0.0, '#082a30');
-            g.addColorStop(0.18, '#17565a');
-            g.addColorStop(0.4, '#256f72');
-            g.addColorStop(0.65, '#195a5e');
-            g.addColorStop(1.0, '#04181c');
-        }
-        c.fillStyle = g;
+        c.fillStyle = '#dcbc94';
         c.fillRect(0, 0, w, h);
 
-        if (kind === 'back') {
-            // Halo suave alrededor del reloj
-            const rg = c.createRadialGradient(w * 0.5, h * 0.5625, 0, w * 0.5, h * 0.5625, w * 0.8);
-            rg.addColorStop(0, 'rgba(60,150,150,0.22)');
-            rg.addColorStop(1, 'rgba(60,150,150,0)');
-            c.fillStyle = rg;
-            c.fillRect(0, 0, w, h);
-            // Esquinas laterales más oscuras
-            const e = c.createLinearGradient(0, 0, w, 0);
-            e.addColorStop(0, 'rgba(0,0,0,0.45)');
-            e.addColorStop(0.25, 'rgba(0,0,0,0)');
-            e.addColorStop(0.75, 'rgba(0,0,0,0)');
-            e.addColorStop(1, 'rgba(0,0,0,0.45)');
-            c.fillStyle = e;
-            c.fillRect(0, 0, w, h);
-        } else {
-            // "Cono" de luz suave en el tramo alto de la pared (como en la imagen)
-            const p = towardBack ? 0.6 : 0.45;
+        const plankW = 0.19 * ppm;
+        const cols = Math.ceil(w / plankW);
+        const TAU = Math.PI * 2;
+
+        const drawPlank = (x, y, pw, len) => {
             c.save();
-            c.translate((towardBack ? p : 1 - p) * w, h * 0.3);
-            c.scale(1, (h * 0.5) / (w * 0.34));
-            const gl = c.createRadialGradient(0, 0, 0, 0, 0, w * 0.34);
-            gl.addColorStop(0, `rgba(95,195,190,${LOOK.wallGlow})`);
-            gl.addColorStop(0.6, `rgba(70,165,165,${LOOK.wallGlow * 0.45})`);
-            gl.addColorStop(1, 'rgba(60,150,150,0)');
-            c.fillStyle = gl;
-            c.fillRect(-w, -h * 3, w * 2, h * 6);
+            c.beginPath();
+            c.rect(x, y, pw, len);
+            c.clip();
+
+            const t = rnd(-9, 9);
+            c.fillStyle = `rgb(${Math.round(221 + t)},${Math.round(189 + t)},${Math.round(149 + t * 1.1)})`;
+            c.fillRect(x, y, pw, len);
+
+            for (let i = 0; i < 5; i++) {
+                const bw = rnd(pw * 0.25, pw * 0.8);
+                const bx = x + rnd(0, pw);
+                const warm = Math.random() > 0.5;
+                const rgb = warm ? '198,152,108' : '238,214,178';
+                const a = warm ? rnd(0.08, 0.2) : rnd(0.1, 0.22);
+                const g = c.createLinearGradient(bx - bw / 2, 0, bx + bw / 2, 0);
+                g.addColorStop(0, `rgba(${rgb},0)`);
+                g.addColorStop(0.5, `rgba(${rgb},${a})`);
+                g.addColorStop(1, `rgba(${rgb},0)`);
+                c.fillStyle = g;
+                c.fillRect(bx - bw / 2, y, bw, len);
+            }
+
+            for (let i = 0; i < pw * 0.9; i++) {
+                const gx = x + rnd(0, pw);
+                const dark = Math.random() < 0.6;
+                c.strokeStyle = dark
+                    ? `rgba(122,84,50,${rnd(0.04, 0.16)})`
+                    : `rgba(247,228,194,${rnd(0.05, 0.14)})`;
+                c.lineWidth = rnd(0.5, 1.4);
+                const amp = rnd(0.5, 2.8), ph = rnd(0, TAU), fr = rnd(0.004, 0.012);
+                c.beginPath();
+                c.moveTo(gx, y);
+                for (let yy = y; yy <= y + len + 16; yy += 16) c.lineTo(gx + Math.sin(yy * fr + ph) * amp, yy);
+                c.stroke();
+            }
+
+            if (Math.random() < 0.2) {
+                const kx = x + rnd(pw * 0.25, pw * 0.75), ky = y + rnd(len * 0.1, len * 0.9);
+                const kr = rnd(5, 10);
+                c.save();
+                c.translate(kx, ky);
+                c.scale(1, 2.4);
+                const kg = c.createRadialGradient(0, 0, 0, 0, 0, kr * 1.8);
+                kg.addColorStop(0, 'rgba(112,72,42,0.6)');
+                kg.addColorStop(0.45, 'rgba(140,96,60,0.32)');
+                kg.addColorStop(1, 'rgba(140,96,60,0)');
+                c.fillStyle = kg;
+                c.fillRect(-kr * 2, -kr * 2, kr * 4, kr * 4);
+                c.strokeStyle = 'rgba(100,66,38,0.3)';
+                c.lineWidth = 0.8;
+                for (let q = 1; q <= 3; q++) {
+                    c.beginPath();
+                    c.arc(0, 0, kr * 0.35 * q, 0, TAU);
+                    c.stroke();
+                }
+                c.restore();
+            }
+
+            const sh = c.createLinearGradient(x, 0, x + pw, 0);
+            sh.addColorStop(0, 'rgba(255,242,220,0.08)');
+            sh.addColorStop(0.5, 'rgba(255,242,220,0)');
+            sh.addColorStop(1, 'rgba(90,60,30,0.06)');
+            c.fillStyle = sh;
+            c.fillRect(x, y, pw, len);
             c.restore();
 
-            // Se hunde en negro hacia el piso
-            const bd = c.createLinearGradient(0, h * 0.55, 0, h);
-            bd.addColorStop(0, 'rgba(0,0,0,0)');
-            bd.addColorStop(1, `rgba(0,0,0,${LOOK.wallBottomDark})`);
-            c.fillStyle = bd;
-            c.fillRect(0, h * 0.55, w, h * 0.45);
+            c.fillStyle = 'rgba(92,64,38,0.5)';
+            c.fillRect(x, y, 1.6, len);
+            c.fillRect(x, y, pw, 1.6);
+            c.fillStyle = 'rgba(252,236,208,0.32)';
+            c.fillRect(x + 1.6, y, 1, len);
+            c.fillRect(x, y + 1.6, pw, 1);
+        };
 
-            // Más oscuro cerca de la entrada
-            const dd = c.createLinearGradient(0, 0, w, 0);
-            for (const [q, a] of [[0, 0.7], [0.3, 0.25], [0.7, 0.0], [1, 0.12]]) {
-                dd.addColorStop(towardBack ? q : 1 - q, `rgba(0,0,0,${a})`);
+        for (let col = 0; col < cols; col++) {
+            const x0 = col * plankW;
+            const pw = Math.min(plankW, w - x0);
+            let y = -rnd(0.2, 1.4) * ppm;
+            while (y < h) {
+                const len = rnd(1.1, 2.4) * ppm;
+                drawPlank(x0, y, pw, len);
+                y += len;
             }
-            c.fillStyle = dd;
-            c.fillRect(0, 0, w, h);
         }
 
-        for (let i = 0; i < 9000; i++) {
+        for (let i = 0; i < 10; i++) {
+            const x = rnd(0, w), y = rnd(0, h), r = rnd(120, 320);
+            const g = c.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(255,238,210,0.07)');
+            g.addColorStop(1, 'rgba(255,238,210,0)');
+            c.fillStyle = g;
+            c.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        for (let i = 0; i < 20000; i++) {
             c.fillStyle = Math.random() > 0.5
-                ? `rgba(0,0,0,${rnd(0.02, 0.06)})`
-                : `rgba(120,200,200,${rnd(0.01, 0.04)})`;
+                ? `rgba(90,60,30,${rnd(0.02, 0.06)})`
+                : `rgba(255,240,215,${rnd(0.02, 0.05)})`;
             c.fillRect(rnd(0, w), rnd(0, h), 1.5, 1.5);
-        }
-        for (let i = 0; i < 60; i++) {
-            c.fillStyle = `rgba(0,0,0,${rnd(0.01, 0.035)})`;
-            c.fillRect(rnd(0, w), 0, rnd(1, 3), h);
-        }
-        return texOf(cv);
-    }
-
-    // Alfombra teal: charco de luz al centro, sombras bajo cómoda y sillón
-    // (canvas arriba = fondo de la sala, abajo = entrada)
-    createRoomFloorTexture() {
-        const w = 512, h = 1024;
-        const cv = canvasOf(w, h);
-        const c = cv.getContext('2d');
-        const fg = LOOK.floorGlow;
-        const a = (v) => Math.min(1, v * fg);
-        c.fillStyle = '#0d4447';
-        c.fillRect(0, 0, w, h);
-
-        // Charco de luz central
-        c.save();
-        c.translate(w * 0.5, h * 0.42);
-        c.scale(1, 2.2);
-        const g = c.createRadialGradient(0, 0, 0, 0, 0, w * 0.62);
-        g.addColorStop(0, `rgba(140,225,205,${a(0.95)})`);
-        g.addColorStop(0.4, `rgba(80,170,160,${a(0.65)})`);
-        g.addColorStop(1, 'rgba(20,90,92,0)');
-        c.fillStyle = g;
-        c.fillRect(-w, -h * 2, w * 2, h * 4);
-        c.restore();
-
-        // Rebote de luz al pie de la pared del fondo
-        const bk = c.createLinearGradient(0, 0, 0, h * 0.22);
-        bk.addColorStop(0, `rgba(110,200,185,${a(0.35)})`);
-        bk.addColorStop(1, 'rgba(110,200,185,0)');
-        c.fillStyle = bk;
-        c.fillRect(0, 0, w, h * 0.22);
-
-        // Sombras duras bajo la cómoda (izq.) y el sillón (der.)
-        const L = c.createLinearGradient(0, 0, w * 0.32, 0);
-        L.addColorStop(0, 'rgba(0,0,0,0.92)');
-        L.addColorStop(0.55, 'rgba(0,0,0,0.8)');
-        L.addColorStop(1, 'rgba(0,0,0,0)');
-        c.fillStyle = L;
-        c.fillRect(0, 0, w * 0.32, h);
-
-        const R = c.createLinearGradient(w, 0, w * 0.56, 0);
-        R.addColorStop(0, 'rgba(0,0,0,0.95)');
-        R.addColorStop(0.55, 'rgba(0,0,0,0.82)');
-        R.addColorStop(1, 'rgba(0,0,0,0)');
-        c.fillStyle = R;
-        c.fillRect(w * 0.56, 0, w * 0.44, h);
-
-        // Entrada más oscura
-        const F = c.createLinearGradient(0, h, 0, h * 0.7);
-        F.addColorStop(0, 'rgba(0,0,0,0.55)');
-        F.addColorStop(1, 'rgba(0,0,0,0)');
-        c.fillStyle = F;
-        c.fillRect(0, h * 0.7, w, h * 0.3);
-
-        for (let i = 0; i < 22000; i++) {
-            c.fillStyle = Math.random() > 0.5
-                ? `rgba(0,0,0,${rnd(0.03, 0.09)})`
-                : `rgba(150,230,215,${rnd(0.01, 0.04)})`;
-            c.fillRect(rnd(0, w), rnd(0, h), 2, 2);
         }
         return texOf(cv);
     }
@@ -1855,7 +2186,7 @@ export class DenialRoom {
     }
 
     interact(object, uiPromptCallback) {
-        this._ui = uiPromptCallback; // lo reutiliza el arrastre de las flores para sus mensajes
+        this._ui = uiPromptCallback;
         if (object.userData.id === 'entryDoor') {
             if (!this.isDoorUnlocked) {
                 uiPromptCallback('La puerta está trabada. Sientes que estás ignorando detalles en el entorno...');
@@ -1887,8 +2218,6 @@ export class DenialRoom {
         }
     }
 
-    // Pone en marcha el reloj: arranca desde la hora en que estaba detenido (CLOCK_STOPPED)
-    // y avanza en tiempo real; el segundero salta de a un segundo, como uno de cuerda.
     startClock() {
         if (this.clockRunning) return;
         this.clockRunning = true;
@@ -1901,7 +2230,7 @@ export class DenialRoom {
             const elapsed = Math.max(0, (now - t0) / 1000);
             const whole = Math.floor(elapsed);
             const jump = Math.min(1, (elapsed - whole) / 0.15);
-            const total = base + whole + (1 - Math.pow(1 - jump, 3)); // salto rápido al cambiar de segundo
+            const total = base + whole + (1 - Math.pow(1 - jump, 3));
             hourHand.rotation.z = -((total / 43200) % 1) * TAU;
             minuteHand.rotation.z = -(((total % 3600) / 3600)) * TAU;
             secondHand.rotation.z = -(((total % 60) / 60)) * TAU;
@@ -1910,14 +2239,13 @@ export class DenialRoom {
         requestAnimationFrame(tick);
     }
 
-    // Desliza el cajón entreabierto hasta dejarlo al ras (sin depender de un loop externo)
     closeDrawer(duration = 420) {
         const drawer = this.drawer;
         const from = drawer.position.x;
         const t0 = performance.now();
         const step = (now) => {
             const k = Math.min(1, Math.max(0, (now - t0) / duration));
-            const eased = 1 - Math.pow(1 - k, 3); // easeOutCubic
+            const eased = 1 - Math.pow(1 - k, 3);
             drawer.position.x = from * (1 - eased);
             if (k < 1) requestAnimationFrame(step);
         };
@@ -1927,7 +2255,6 @@ export class DenialRoom {
     checkProgress(uiPromptCallback) {
         if (this.anomaliesAccepted >= this.totalAnomalies) {
             this.isDoorUnlocked = true;
-            // La textura ya aporta el color base, así que se tiñe de verde con color + emisivo
             this.doorMaterial.color.setHex(0x7fd1a0);
             this.doorMaterial.emissive.setHex(0x07281a);
             setTimeout(() => {
@@ -1937,8 +2264,6 @@ export class DenialRoom {
     }
 }
 
-// Efectos de lente de la imagen: viñeta fuerte + desenfoque en los bordes (tilt-shift).
-// "container" debe tener position: relative (o ser el body). Devuelve una función para quitarlos.
 export function addLensEffects(container = document.body) {
     const blur = document.createElement('div');
     blur.style.cssText = [

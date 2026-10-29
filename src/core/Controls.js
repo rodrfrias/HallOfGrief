@@ -87,7 +87,7 @@ export class FirstPersonControls {
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         this.direction.normalize();
 
-        const speed = 12.0;
+        const speed = 16.0;
         if (this.moveForward || this.moveBackward) {
         this.velocity.z -= this.direction.z * speed * delta;
         }

@@ -54,6 +54,7 @@ export class Corridor {
         this.flickerLights = [];
         this.stateMaterialBindings = [];
         this.debrisMeshes = [];
+        this.interactables = [];
         this.currentState = 0;
         this.defaultFogDensity = scene.fog ? scene.fog.density : 0.095;
         this.buildCorridor();
@@ -956,7 +957,12 @@ export class Corridor {
             new THREE.MeshStandardMaterial({ color: 0x121417, roughness: 0.95 })
         );
         backWall.position.set(0, height / 2, -length);
+        backWall.userData = {
+            id: 'corridorDoor',
+            prompt: 'Puerta del pasillo (Interactuar)'
+        };
         this.scene.add(backWall);
+        this.interactables.push(backWall);
 
         // LUMINARIAS FLUORESCENTES SUSPENDIDAS (Optimizadas para proyectar parches cálidos sobre el ajedrez)
         for (let z = -2.5; z >= -length; z -= 3.5) {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FirstPersonControls } from './core/Controls.js';
 import { AudioManager } from './core/AudioManager.js';
+import { GameManager } from './core/GameManager.js';
 import { Corridor } from './world/Corridor.js';
 import { DenialRoom } from './world/DenialRoom.js';
 
@@ -8,6 +9,8 @@ class App {
     constructor() {
         this.container = document.body;
         this.clock = new THREE.Clock();
+        this.gameManager = new GameManager();
+        this.currentRoom = null;
         this.initScene();
         this.initCore();
         this.buildWorld();
@@ -55,7 +58,6 @@ class App {
     buildWorld() {
         this.corridor = new Corridor(this.scene);
         this.corridor.setCorridorState(0, this.scene);
-        this.denialRoom = new DenialRoom(this.scene);
         this.initCorridorStateControls();
     }
 
@@ -86,17 +88,76 @@ class App {
         this.uiPrompt = document.getElementById('ui-prompt');
 
         document.addEventListener('click', () => {
-        if (!this.controls.isLocked) return;
+            if (!this.controls.isLocked) return;
 
-        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-        const intersects = this.raycaster.intersectObjects(this.denialRoom.interactables);
+            const obj = this.getInteractionTarget();
+            if (!obj) return;
 
-        if (intersects.length > 0) {
-            const obj = intersects[0].object;
             this.audioManager.playClickSound();
-            this.denialRoom.interact(obj, (text) => this.showPrompt(text));
-        }
+            if (obj.userData.id === 'corridorDoor') {
+                this.loadNextRoom();
+            } else if (this.currentRoom) {
+                this.currentRoom.interact(obj, (text) => this.showPrompt(text));
+            }
         });
+    }
+
+    getInteractionTarget() {
+        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+
+        if (!this.currentRoom) {
+            const corridorIntersects = this.raycaster.intersectObjects(
+                this.corridor.interactables,
+                false
+            );
+            if (corridorIntersects.length > 0) return corridorIntersects[0].object;
+            return null;
+        }
+
+        const roomIntersects = this.raycaster.intersectObjects(
+            this.currentRoom.interactables,
+            false
+        );
+        return roomIntersects.length > 0 ? roomIntersects[0].object : null;
+    }
+
+    loadNextRoom() {
+        const roomName = this.gameManager.getNextRoom();
+        if (!roomName) {
+            this.showPrompt('No quedan habitaciones por descubrir.');
+            return;
+        }
+
+        if (this.currentRoom) this.unloadRoom(this.currentRoom);
+
+        const roomFactories = {
+            Denial: () => new DenialRoom(this.scene)
+        };
+        const createRoom = roomFactories[roomName];
+        if (!createRoom) {
+            this.showPrompt(`La habitación "${roomName}" todavía no está disponible.`);
+            return;
+        }
+
+        this.currentRoom = createRoom();
+        this.showPrompt(`Has entrado en: ${roomName}`);
+    }
+
+    unloadRoom(roomInstance) {
+        if (!roomInstance || !roomInstance.roomGroup) return;
+
+        roomInstance.roomGroup.traverse((object) => {
+            if (object.geometry) object.geometry.dispose();
+            if (!object.material) return;
+
+            const materials = Array.isArray(object.material)
+                ? object.material
+                : [object.material];
+            materials.forEach((material) => material.dispose());
+        });
+
+        this.scene.remove(roomInstance.roomGroup);
+        if (this.currentRoom === roomInstance) this.currentRoom = null;
     }
 
     showPrompt(text) {
@@ -110,16 +171,12 @@ class App {
     checkRaycastHover() {
         if (!this.controls.isLocked) return;
 
-        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-        const intersects = this.raycaster.intersectObjects(this.denialRoom.interactables);
-
-        if (intersects.length > 0) {
-        const obj = intersects[0].object;
-        if (obj.userData && obj.userData.prompt) {
+        const obj = this.getInteractionTarget();
+        if (obj && obj.userData && obj.userData.prompt) {
             this.uiPrompt.innerText = obj.userData.prompt;
             return;
         }
-        }
+        this.uiPrompt.innerText = '';
     }
 
     onWindowResize() {

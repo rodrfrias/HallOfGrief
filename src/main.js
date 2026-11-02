@@ -65,9 +65,11 @@ class App {
                 Digit0: 0,
                 Digit1: 1,
                 Digit2: 2,
+                Digit3: 3,
                 Numpad0: 0,
                 Numpad1: 1,
-                Numpad2: 2
+                Numpad2: 2,
+                Numpad3: 3
             };
             const state = stateByKey[event.code];
 

@@ -43,6 +43,7 @@ const HOTEL_THEME = {
 const CORRIDOR_STATES = [
     { lightFactor: 1, fogDensity: null, debrisVisible: true },
     { lightFactor: 1.15, fogDensity: 0.03, debrisVisible: false },
+    { lightFactor: 1.3, fogDensity: 0.015, debrisVisible: false },
     { lightFactor: 1.45, fogDensity: 0.0, debrisVisible: false }
 ];
 
@@ -305,7 +306,8 @@ export class Corridor {
         stripeColor,
         trimColor,
         panelColor,
-        includePeeling = false
+        includePeeling = false,
+        peelingScale = 1
     }) {
         const S = 1024;
         const canvas = document.createElement('canvas');
@@ -502,9 +504,9 @@ export class Corridor {
                 ctx.restore();
             };
 
-            drawPeeling(220, 245, 145, 54, -0.22, 19);
-            drawPeeling(735, 430, 72, 132, 0.34, 17);
-            drawPeeling(465, 610, 118, 44, 0.12, 18);
+            drawPeeling(220, 245, 145 * peelingScale, 54 * peelingScale, -0.22, 19);
+            drawPeeling(735, 430, 72 * peelingScale, 132 * peelingScale, 0.34, 17);
+            drawPeeling(465, 610, 118 * peelingScale, 44 * peelingScale, 0.12, 18);
         }
 
         const wrap = (source, srgb) => {
@@ -596,7 +598,7 @@ export class Corridor {
         return this.wrapTexture(canvas, true, 1, 8);
     }
 
-    createWornCeilingTexture() {
+    createWornCeilingTexture(wear = 1) {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 512;
         const ctx = canvas.getContext('2d');
@@ -605,8 +607,8 @@ export class Corridor {
 
         for (let i = 0; i < 900; i++) {
             ctx.fillStyle = Math.random() > 0.5
-                ? 'rgba(255,255,255,0.12)'
-                : 'rgba(58,62,61,0.12)';
+                ? `rgba(255,255,255,${0.12 * wear})`
+                : `rgba(58,62,61,${0.12 * wear})`;
             ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
         }
 
@@ -622,10 +624,10 @@ export class Corridor {
                     cy + x * Math.sin(rotation) + y * Math.cos(rotation)
                 ]);
             }
-            ctx.fillStyle = 'rgba(83, 78, 70, 0.38)';
+            ctx.fillStyle = `rgba(83, 78, 70, ${0.38 * wear})`;
             tracePoly(ctx, points);
             ctx.fill();
-            ctx.strokeStyle = 'rgba(238, 231, 211, 0.55)';
+            ctx.strokeStyle = `rgba(238, 231, 211, ${0.55 * wear})`;
             ctx.lineWidth = 4;
             tracePoly(ctx, points);
             ctx.stroke();
@@ -660,11 +662,11 @@ export class Corridor {
             drawCrack(cx + rx * 0.1, cy + ry * 0.1, rnd(-Math.PI, Math.PI), Math.max(rx, ry) * 0.65, 0);
             ctx.restore();
         };
-        drawPatch(95, 125, 68, 28, -0.25);
-        drawPatch(365, 270, 44, 80, 0.3);
-        drawPatch(250, 440, 88, 24, 0.08);
+        drawPatch(95, 125, 68 * wear, 28 * wear, -0.25);
+        drawPatch(365, 270, 44 * wear, 80 * wear, 0.3);
+        drawPatch(250, 440, 88 * wear, 24 * wear, 0.08);
 
-        ctx.strokeStyle = 'rgba(53, 49, 44, 0.5)';
+        ctx.strokeStyle = `rgba(53, 49, 44, ${0.5 * wear})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(132, 112);
@@ -678,7 +680,7 @@ export class Corridor {
         return this.wrapTexture(canvas, true, 1, 3);
     }
 
-    createParquetFloorTexture() {
+    createParquetFloorTexture(includeWear = false) {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 512;
         const ctx = canvas.getContext('2d');
@@ -704,6 +706,20 @@ export class Corridor {
                     ctx.stroke();
                 }
             }
+        }
+        if (includeWear) {
+            ctx.fillStyle = 'rgba(86, 54, 35, 0.16)';
+            ctx.fillRect(82, 126, 62, 18);
+            ctx.fillRect(334, 337, 38, 24);
+            ctx.strokeStyle = 'rgba(86, 54, 35, 0.38)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(98, 134);
+            ctx.lineTo(116, 145);
+            ctx.lineTo(109, 158);
+            ctx.moveTo(340, 347);
+            ctx.lineTo(357, 360);
+            ctx.stroke();
         }
         return this.wrapTexture(canvas, true, 1, 6);
     }
@@ -789,6 +805,14 @@ export class Corridor {
                 includePeeling: true
             }),
             this.createHotelWallTextures({
+                baseColor: this.theme.blueGray,
+                stripeColor: this.theme.blueGrayLight,
+                trimColor: '#c4b39b',
+                panelColor: this.theme.blueGrayDark,
+                includePeeling: true,
+                peelingScale: 0.42
+            }),
+            this.createHotelWallTextures({
                 baseColor: this.theme.cream,
                 stripeColor: this.theme.creamLight,
                 trimColor: this.theme.creamLight,
@@ -837,6 +861,7 @@ export class Corridor {
         const floorTextures = [
             this.createCheckerboardFloorTexture(),
             this.createCarpetFloorTexture(true),
+            this.createParquetFloorTexture(true),
             this.createParquetFloorTexture()
         ];
         const floorMaterials = floorTextures.map((texture, stateIndex) => new THREE.MeshStandardMaterial({
@@ -848,6 +873,7 @@ export class Corridor {
         }));
 
         const ceilingWornTexture = this.createWornCeilingTexture();
+        const ceilingTransitionTexture = this.createWornCeilingTexture(0.35);
         const ceilingMaterials = [
             new THREE.MeshStandardMaterial({ color: 0x0d0f12, roughness: 0.95 }),
             new THREE.MeshStandardMaterial({
@@ -855,6 +881,12 @@ export class Corridor {
                 bumpMap: ceilingWornTexture,
                 bumpScale: 0.012,
                 roughness: 0.88
+            }),
+            new THREE.MeshStandardMaterial({
+                map: ceilingTransitionTexture,
+                bumpMap: ceilingTransitionTexture,
+                bumpScale: 0.006,
+                roughness: 0.82
             }),
             new THREE.MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.72 })
         ];
@@ -972,7 +1004,7 @@ export class Corridor {
 
     setCorridorState(stateIndex, scene = this.scene) {
         const requestedState = Number.isFinite(stateIndex) ? Math.trunc(stateIndex) : 0;
-        const nextState = Math.max(0, Math.min(2, requestedState));
+        const nextState = Math.max(0, Math.min(3, requestedState));
         this.currentState = nextState;
 
         this.stateMaterialBindings.forEach(({ mesh, materials }) => {
@@ -985,7 +1017,7 @@ export class Corridor {
         if (nextState > 0) {
             const stateConfig = CORRIDOR_STATES[nextState];
             const intensityFactor = stateConfig.lightFactor;
-            const lightColor = nextState === 2 ? this.theme.warmLight : 0xffd6a3;
+            const lightColor = nextState >= 2 ? this.theme.warmLight : 0xffd6a3;
             this.flickerLights.forEach((item) => {
                 item.pointLight.color.set(lightColor);
                 item.spotLight.color.set(lightColor);
@@ -1024,7 +1056,7 @@ export class Corridor {
             return;
         }
 
-        if (this.currentState === 2) return;
+        if (this.currentState >= 2) return;
 
         this.flickerLights.forEach((item, index) => {
             // Titileo sutil

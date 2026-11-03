@@ -1090,6 +1090,18 @@ export class Corridor {
         const nextState = Math.max(0, Math.min(3, requestedState));
         this.currentState = nextState;
 
+        if (this.segments) {
+            this.segments.forEach(segment => {
+                segment.children.forEach(child => {
+                    if (child.userData && child.userData.isDoorAssembly && child.userData.setState) {
+                        child.userData.setState(nextState);
+                    }
+                });
+            });
+        }
+
+
+        
         this.stateMaterialBindings.forEach(({ mesh, materials }) => {
             mesh.material = materials[nextState];
         });
@@ -1142,13 +1154,13 @@ export class Corridor {
         }
     }
 
-
 addRandomDoor(segmentGroup) {
         this.removeDoorFromSegment(segmentGroup);
 
         // 35% de chance de spawnear puerta en la pared IZQUIERDA
         if (Math.random() <= 0.35) {
-            const doorLeft = this.doorFactory.getClone(true);
+            // AQUÍ: pasamos this.currentState
+            const doorLeft = this.doorFactory.getClone(true, this.currentState);
             doorLeft.traverse((child) => {
                 if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
             });
@@ -1157,13 +1169,35 @@ addRandomDoor(segmentGroup) {
 
         // 35% de chance de spawnear puerta en la pared DERECHA
         if (Math.random() <= 0.35) {
-            const doorRight = this.doorFactory.getClone(false);
+            // AQUÍ: pasamos this.currentState
+            const doorRight = this.doorFactory.getClone(false, this.currentState);
             doorRight.traverse((child) => {
                 if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
             });
             segmentGroup.add(doorRight);
         }
     }
+// addRandomDoor(segmentGroup) {
+//         this.removeDoorFromSegment(segmentGroup);
+
+//         // 35% de chance de spawnear puerta en la pared IZQUIERDA
+//         if (Math.random() <= 0.35) {
+//             const doorLeft = this.doorFactory.getClone(true);
+//             doorLeft.traverse((child) => {
+//                 if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
+//             });
+//             segmentGroup.add(doorLeft);
+//         }
+
+//         // 35% de chance de spawnear puerta en la pared DERECHA
+//         if (Math.random() <= 0.35) {
+//             const doorRight = this.doorFactory.getClone(false);
+//             doorRight.traverse((child) => {
+//                 if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
+//             });
+//             segmentGroup.add(doorRight);
+//         }
+//     }
 
     removeDoorFromSegment(segmentGroup) {
         // Encontramos TODAS las puertas del segmento (ahora puede haber hasta 2)

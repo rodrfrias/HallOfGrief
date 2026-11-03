@@ -21,8 +21,8 @@ class App {
     initScene() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x020304);
-        this.scene.fog = new THREE.FogExp2(0x020304, 0.095); // Densidad para oscurecer el fondo
-
+        // this.scene.fog = new THREE.FogExp2(0x020304, 0.095); // Densidad para oscurecer el fondo
+        this.scene.fog = new THREE.Fog(0x020304, 2, 22);
         this.camera = new THREE.PerspectiveCamera(
         75,
         window.innerWidth / window.innerHeight,
@@ -192,7 +192,7 @@ class App {
         const elapsedTime = this.clock.getElapsedTime();
 
         this.controls.update(delta);
-        this.corridor.update(elapsedTime); // Actualizar titileo de luces
+        this.corridor.update(elapsedTime, this.controls.getObject().position.z); // Actualizar treadmill y luces
         this.checkRaycastHover();
 
         this.renderer.render(this.scene, this.camera);

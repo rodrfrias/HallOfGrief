@@ -40,13 +40,24 @@ const HOTEL_THEME = {
     warmLight: 0xffd9a8
 };
 
+// const CORRIDOR_STATES = [
+//     { lightFactor: 1, fogDensity: null, debrisVisible: true },
+//     { lightFactor: 1.15, fogDensity: 0.025, debrisVisible: false },
+//     { lightFactor: 1.3, fogDensity: 0.025, debrisVisible: false },
+//     { lightFactor: 1.45, fogDensity: 0.025, debrisVisible: false }
+// ];
+// const CORRIDOR_STATES = [
+//     { lightFactor: 1, fogNear: 2, fogFar: 22, debrisVisible: true },
+//     { lightFactor: 1.15, fogNear: 8, fogFar: 40, debrisVisible: false },
+//     { lightFactor: 1.3, fogNear: 8, fogFar: 40, debrisVisible: false },
+//     { lightFactor: 1.45, fogNear: 8, fogFar: 40, debrisVisible: false }
+// ];
 const CORRIDOR_STATES = [
-    { lightFactor: 1, fogDensity: null, debrisVisible: true },
-    { lightFactor: 1.15, fogDensity: 0.03, debrisVisible: false },
-    { lightFactor: 1.3, fogDensity: 0.015, debrisVisible: false },
-    { lightFactor: 1.45, fogDensity: 0.0, debrisVisible: false }
+    { lightFactor: 1, fogNear: 2, fogFar: 22, debrisVisible: true },
+    { lightFactor: 1.15, fogNear: 5, fogFar: 24, debrisVisible: false },
+    { lightFactor: 1.3, fogNear: 5, fogFar: 24, debrisVisible: false },
+    { lightFactor: 1.45, fogNear: 5, fogFar: 24, debrisVisible: false }
 ];
-
 export class Corridor {
     constructor(scene, options = {}) {
         this.scene = scene;
@@ -789,10 +800,6 @@ export class Corridor {
         const height = 2.8;
         const length = 8.0;
 
-        // --- Hueco de la puerta de Negación (debe coincidir con DenialRoom.js) ---
-        const doorZ = -8.0;          // centro de la puerta sobre el eje Z
-        const doorOpeningW = 1.16;    // un poco menor que la hoja (1.2) para que la hoja y el marco tapen los bordes
-        const doorOpeningH = 2.18;    // un poco menor que la hoja (2.2) por la misma razón
         const wallThickness = 0.08;
 
         // Tres sets visuales: deteriorado, limpio y limpio con tonos cálidos.
@@ -838,8 +845,8 @@ export class Corridor {
                 bumpMap: setup(wallTex.bump),
                 bumpScale: stateIndex === 0 ? 0.03 : 0.008,
                 color: 0xffffff, // el #6B7280 (SDD) ya está en la textura
-                roughness: stateIndex === 2 ? 0.78 : 0.92,
-                metalness: stateIndex === 2 ? 0.05 : 0.03
+                roughness: stateIndex >= 2 ? 0.78 : 0.92,
+                metalness: stateIndex >= 2 ? 0.05 : 0.03
             });
         };
 
@@ -854,7 +861,7 @@ export class Corridor {
                 materials[0]
             );
             mesh.position.set(-width / 2, y0 + segHeight / 2, (z0 + z1) / 2);
-            this.scene.add(mesh);
+            segment.add(mesh);
             this.stateMaterialBindings.push({ mesh, materials });
             return mesh;
         };
@@ -869,8 +876,8 @@ export class Corridor {
             map: texture,
             bumpMap: texture,
             bumpScale: stateIndex === 0 ? 0.015 : 0.004,
-            roughness: stateIndex === 2 ? 0.58 : 0.72,
-            metalness: stateIndex === 2 ? 0.12 : 0.08
+            roughness: stateIndex >= 2 ? 0.58 : 0.72,
+            metalness: stateIndex >= 2 ? 0.12 : 0.08
         }));
 
         const ceilingWornTexture = this.createWornCeilingTexture();
@@ -892,7 +899,11 @@ export class Corridor {
             new THREE.MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.72 })
         ];
 
-        // Pared Izquierda: tramo antes de la puerta, tramo después y dintel sobre el hueco
+        const segment = new THREE.Group();
+        segment.frustumCulled = false;
+        const prototypeBindingStart = this.stateMaterialBindings.length;
+
+        // Paredes del segmento
         addLeftWallSegment(0, -length, 0, height);
 
         // Pared Derecha (la cara visible es la -X; el offset de V se mantiene en 0)
@@ -904,7 +915,7 @@ export class Corridor {
             rightWallMaterials[0]
         );
         rightWall.position.set(width / 2, height / 2, -length / 2);
-        this.scene.add(rightWall);
+        segment.add(rightWall);
         this.stateMaterialBindings.push({ mesh: rightWall, materials: rightWallMaterials });
 
         // Piso Ajedrezado
@@ -914,7 +925,7 @@ export class Corridor {
         );
         floor.rotation.x = -Math.PI / 2;
         floor.position.set(0, 0, -length / 2);
-        this.scene.add(floor);
+        segment.add(floor);
         this.stateMaterialBindings.push({ mesh: floor, materials: floorMaterials });
 
         // Techo
@@ -924,7 +935,7 @@ export class Corridor {
         );
         ceiling.rotation.x = Math.PI / 2;
         ceiling.position.set(0, height, -length / 2);
-        this.scene.add(ceiling);
+        segment.add(ceiling);
         this.stateMaterialBindings.push({ mesh: ceiling, materials: ceilingMaterials });
 
         // Escombros: pequeños trozos de revoque caído al pie de las paredes
@@ -936,10 +947,11 @@ export class Corridor {
                 new THREE.BoxGeometry(s * rnd(0.8, 2), s * 0.35, s * rnd(0.8, 1.8)),
                 Math.random() > 0.35 ? chipMat : chipDarkMat
             );
+            chip.userData.isCorridorDebris = true;
             const side = Math.random() > 0.5 ? 1 : -1;
             chip.position.set(side * (width / 2 - rnd(0.04, 0.35)), s * 0.17, -rnd(0.5, length - 0.5));
             chip.rotation.y = rnd(0, Math.PI);
-            this.scene.add(chip);
+            segment.add(chip);
             this.debrisMeshes.push(chip);
         }
 
@@ -949,27 +961,14 @@ export class Corridor {
         const conduit = new THREE.Mesh(conduitGeo, conduitMat);
         conduit.rotation.x = Math.PI / 2;
         conduit.position.set(0, height - 0.04, -length / 2);
-        this.scene.add(conduit);
+        segment.add(conduit);
 
-        // Pared Final
-        const backWall = new THREE.Mesh(
-            new THREE.BoxGeometry(width, height, 0.08),
-            new THREE.MeshStandardMaterial({ color: 0x121417, roughness: 0.95 })
-        );
-        backWall.position.set(0, height / 2, -length);
-        backWall.userData = {
-            id: 'corridorDoor',
-            prompt: 'Puerta del pasillo (Interactuar)'
-        };
-        this.scene.add(backWall);
-        this.interactables.push(backWall);
-
-        // LUMINARIAS FLUORESCENTES SUSPENDIDAS (Optimizadas para proyectar parches cálidos sobre el ajedrez)
+        // Luminarias fluorescentes suspendidas
         for (let z = -2.5; z >= -length; z -= 3.5) {
             // Luz puntual difusa ambiente
             const pointLight = new THREE.PointLight(0xe2e8f0, 0.35, 4.5);
             pointLight.position.set(0, height - 0.2, z);
-            this.scene.add(pointLight);
+            segment.add(pointLight);
 
             // SpotLight focalizado cálido/neutro que proyecta sobre las baldosas
             const spotLight = new THREE.SpotLight(0xfff7ed, 0.85);
@@ -978,15 +977,15 @@ export class Corridor {
             spotLight.angle = Math.PI / 3.8; // Haz ajustado para marcar el parche sobre el ajedrez
             spotLight.penumbra = 0.6;
             spotLight.distance = 4.2;
-            this.scene.add(spotLight);
-            this.scene.add(spotLight.target);
+            segment.add(spotLight);
+            segment.add(spotLight.target);
 
             // Soporte del tubo fluorescente suspendido
             const tubeHolderGeo = new THREE.BoxGeometry(0.08, 0.06, 1.1);
             const tubeHolderMat = new THREE.MeshStandardMaterial({ color: 0x333942, metalness: 0.5 });
             const tubeHolder = new THREE.Mesh(tubeHolderGeo, tubeHolderMat);
             tubeHolder.position.set(0, height - 0.1, z);
-            this.scene.add(tubeHolder);
+            segment.add(tubeHolder);
 
             // Cilindro fluorescente emisor
             const tubeGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.95, 16);
@@ -994,7 +993,7 @@ export class Corridor {
             const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
             tubeMesh.rotation.x = Math.PI / 2;
             tubeMesh.position.set(0, height - 0.14, z);
-            this.scene.add(tubeMesh);
+            segment.add(tubeMesh);
 
             this.flickerLights.push({
                 pointLight,
@@ -1006,6 +1005,91 @@ export class Corridor {
                 nextSoftFlickerAt: 8 + Math.random() * 8
             });
         }
+
+        const prototypeBindings = this.stateMaterialBindings.slice(prototypeBindingStart);
+        const registerClone = (clone) => {
+            const cloneMeshes = [];
+            clone.traverse((object) => {
+                if (object.isMesh) cloneMeshes.push(object);
+            });
+            prototypeBindings.forEach((binding, index) => {
+                const cloneMesh = cloneMeshes[index];
+                if (cloneMesh) {
+                    this.stateMaterialBindings.push({
+                        mesh: cloneMesh,
+                        materials: binding.materials
+                    });
+                }
+            });
+
+            const cloneLights = [];
+            clone.traverse((object) => {
+                if (object.isPointLight) cloneLights.push({ pointLight: object });
+            });
+            const cloneSpots = [];
+            clone.traverse((object) => {
+                if (object.isSpotLight) cloneSpots.push({ spotLight: object });
+            });
+            const cloneTubes = [];
+            clone.traverse((object) => {
+                if (object.isMesh && object.material && object.material.isMeshBasicMaterial) {
+                    cloneTubes.push(object);
+                }
+            });
+            cloneLights.forEach(({ pointLight }, index) => {
+                const spotLight = cloneSpots[index] && cloneSpots[index].spotLight;
+                const tubeMesh = cloneTubes[index];
+                if (!spotLight || !tubeMesh) return;
+                this.flickerLights.push({
+                    pointLight,
+                    spotLight,
+                    baseIntensityPoint: 0.35,
+                    baseIntensitySpot: 0.85,
+                    tubeMesh,
+                    softFlickerUntil: 0,
+                    nextSoftFlickerAt: 8 + Math.random() * 8
+                });
+            });
+
+            clone.traverse((object) => {
+                if (object.isMesh && object.userData.isCorridorDebris) {
+                    this.debrisMeshes.push(object);
+                }
+            });
+        };
+
+    //     this.segments = [segment];
+    //     segment.position.z = 0;
+    //     this.scene.add(segment);
+    //    for (let i = 1; i < 7; i++) { 
+    //         const clone = segment.clone(true);
+    //         clone.frustumCulled = false;
+    //         clone.position.z = -length * i;
+    //         this.segments.push(clone);
+    //         this.scene.add(clone);
+    //         registerClone(clone);
+    //     }
+
+    this.segments = [];
+        const halfCount = 3; // 3 hacia atrás, el centro (0), y 3 hacia adelante = 7 segmentos
+
+        for (let i = -halfCount; i <= halfCount; i++) {
+            let currentSegment;
+            
+            if (i === 0) {
+                currentSegment = segment; // Usamos el original para el centro
+            } else {
+                currentSegment = segment.clone(true);
+                registerClone(currentSegment);
+            }
+            
+            currentSegment.frustumCulled = false;
+            currentSegment.position.z = -length * i; 
+            
+            this.segments.push(currentSegment);
+            this.scene.add(currentSegment);
+        }
+        this.segmentLength = length;
     }
 
     setCorridorState(stateIndex, scene = this.scene) {
@@ -1031,7 +1115,18 @@ export class Corridor {
                 item.spotLight.intensity = item.baseIntensitySpot * intensityFactor;
                 item.tubeMesh.material.color.set(lightColor);
             });
-            if (scene.fog) scene.fog.density = stateConfig.fogDensity;
+            // if (scene.fog) {
+            //     scene.fog.density = stateConfig.fogDensity;
+            //     scene.fog.color.setHex(nextState === 1 ? 0x9eafb2 : 0xf0d7b0);
+            // }
+            // scene.background.setHex(nextState === 1 ? 0x9eafb2 : 0xf0d7b0);
+            if (scene.fog) {
+                scene.fog.near = stateConfig.fogNear;
+                scene.fog.far = stateConfig.fogFar;
+                const fogColor = nextState === 1 ? 0x9eafb2 : 0xf0d7b0;
+                scene.fog.color.setHex(fogColor);
+            }
+            scene.background.setHex(nextState === 1 ? 0x9eafb2 : 0xf0d7b0);
         } else {
             this.flickerLights.forEach((item) => {
                 item.pointLight.color.set(0xe2e8f0);
@@ -1040,18 +1135,50 @@ export class Corridor {
                 item.spotLight.intensity = item.baseIntensitySpot;
                 item.tubeMesh.material.color.set(0xfffdfa);
             });
-            if (scene.fog) scene.fog.density = this.defaultFogDensity;
+            // if (scene.fog) {
+            //     scene.fog.density = this.defaultFogDensity;
+            //     scene.fog.color.setHex(0x020304);
+            // }
+            // scene.background.setHex(0x020304);
+            if (scene.fog) {
+                scene.fog.near = 2; // Valores por defecto del estado oscuro
+                scene.fog.far = 22;
+                scene.fog.color.setHex(0x020304);
+            }
+            scene.background.setHex(0x020304);
         }
     }
+    update(time, cameraZ = 0) {
+        // 1. Lógica del pasillo infinito (Treadmill por distancia geométrica)
+        if (this.segments && this.segments.length > 0) {
+            const totalLength = this.segments.length * this.segmentLength; // ej: 56m con 7 segmentos
+            const halfLength = totalLength / 2; // 28m
 
-    update(time) {
+            this.segments.forEach(segment => {
+                // El centro geométrico real del segmento
+                const segmentCenter = segment.position.z - (this.segmentLength / 2);
+                const dist = segmentCenter - cameraZ;
+
+                // Si quedó más de 28m a nuestras espaldas (+Z), lo mandamos al fondo (-Z)
+                if (dist > halfLength) {
+                    segment.position.z -= totalLength;
+                    if (this.addRandomDoor) this.addRandomDoor(segment);
+                } 
+                // Si quedó más de 28m adelante (-Z), lo mandamos atrás (+Z)
+                else if (dist < -halfLength) {
+                    segment.position.z += totalLength;
+                    if (this.addRandomDoor) this.addRandomDoor(segment);
+                }
+            });
+        }
+
+        // 2. Lógica de luces (Estado 1 - Transición)
         if (this.currentState === 1) {
             this.flickerLights.forEach((item) => {
                 if (time >= item.nextSoftFlickerAt) {
                     item.softFlickerUntil = time + 0.12;
                     item.nextSoftFlickerAt = time + 8 + Math.random() * 10;
                 }
-
                 const factor = time < item.softFlickerUntil
                     ? 0.88 + Math.sin(time * 35) * 0.04
                     : 1;
@@ -1064,19 +1191,80 @@ export class Corridor {
 
         if (this.currentState >= 2) return;
 
+        // 3. Lógica de luces (Estado 0 - Opresivo)
         this.flickerLights.forEach((item, index) => {
-            // Titileo sutil
             const noise = Math.sin(time * 10 + index * 2) * 0.04;
             const isFlickerFrame = Math.random() < 0.02;
-
             let factor = 1.0 + noise;
-            if (isFlickerFrame) {
-                factor *= 0.3;
-            }
+            if (isFlickerFrame) factor *= 0.3;
 
             item.pointLight.intensity = item.baseIntensityPoint * factor;
             item.spotLight.intensity = item.baseIntensitySpot * factor;
             item.tubeMesh.material.color.setScalar(Math.max(0.3, factor));
         });
     }
+
+//   update(time, cameraZ = 0) {
+//         if (!this.segments || this.segments.length < 7) return;
+
+//         const segmentLength = this.segmentLength;
+//         // Queremos mantener siempre 3 segmentos (24 metros) hacia adelante y hacia atrás
+//         const limit = segmentLength * 3; 
+
+//         // 1. Condición hacia ADELANTE (-Z)
+//         // Evaluamos contra el segmento que está más lejos al frente (el último del array)
+//         while (cameraZ < this.segments[this.segments.length - 1].position.z + limit) {
+//             const backSegment = this.segments.shift(); 
+//             const frontSegment = this.segments[this.segments.length - 1];
+            
+//             backSegment.position.z = frontSegment.position.z - segmentLength; 
+//             this.addRandomDoor(backSegment);
+//             this.segments.push(backSegment);
+//         }
+
+//         // 2. Condición hacia ATRÁS (+Z)
+//         // Evaluamos contra el segmento que está más lejos atrás (el primero del array)
+//         while (cameraZ > this.segments[0].position.z - limit) {
+//             const frontSegment = this.segments.pop(); 
+//             const backSegment = this.segments[0];
+            
+//             frontSegment.position.z = backSegment.position.z + segmentLength; 
+//             this.addRandomDoor(frontSegment);
+//             this.segments.unshift(frontSegment);
+//         }
+
+//         if (this.currentState === 1) {
+//             this.flickerLights.forEach((item) => {
+//                 if (time >= item.nextSoftFlickerAt) {
+//                     item.softFlickerUntil = time + 0.12;
+//                     item.nextSoftFlickerAt = time + 8 + Math.random() * 10;
+//                 }
+
+//                 const factor = time < item.softFlickerUntil
+//                     ? 0.88 + Math.sin(time * 35) * 0.04
+//                     : 1;
+//                 item.pointLight.intensity = item.baseIntensityPoint * 1.15 * factor;
+//                 item.spotLight.intensity = item.baseIntensitySpot * 1.15 * factor;
+//                 item.tubeMesh.material.color.setScalar(Math.max(0.75, factor));
+//             });
+//             return;
+//         }
+
+//         if (this.currentState >= 2) return;
+
+//         this.flickerLights.forEach((item, index) => {
+//             // Titileo sutil
+//             const noise = Math.sin(time * 10 + index * 2) * 0.04;
+//             const isFlickerFrame = Math.random() < 0.02;
+
+//             let factor = 1.0 + noise;
+//             if (isFlickerFrame) {
+//                 factor *= 0.3;
+//             }
+
+//             item.pointLight.intensity = item.baseIntensityPoint * factor;
+//             item.spotLight.intensity = item.baseIntensitySpot * factor;
+//             item.tubeMesh.material.color.setScalar(Math.max(0.3, factor));
+//         });
+//     }
 }

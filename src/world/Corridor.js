@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CorridorDoor } from './CorridorDoor.js';
 
 // --- Helpers de dibujo procedural ---
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -40,18 +41,7 @@ const HOTEL_THEME = {
     warmLight: 0xffd9a8
 };
 
-// const CORRIDOR_STATES = [
-//     { lightFactor: 1, fogDensity: null, debrisVisible: true },
-//     { lightFactor: 1.15, fogDensity: 0.025, debrisVisible: false },
-//     { lightFactor: 1.3, fogDensity: 0.025, debrisVisible: false },
-//     { lightFactor: 1.45, fogDensity: 0.025, debrisVisible: false }
-// ];
-// const CORRIDOR_STATES = [
-//     { lightFactor: 1, fogNear: 2, fogFar: 22, debrisVisible: true },
-//     { lightFactor: 1.15, fogNear: 8, fogFar: 40, debrisVisible: false },
-//     { lightFactor: 1.3, fogNear: 8, fogFar: 40, debrisVisible: false },
-//     { lightFactor: 1.45, fogNear: 8, fogFar: 40, debrisVisible: false }
-// ];
+
 const CORRIDOR_STATES = [
     { lightFactor: 1, fogNear: 2, fogFar: 22, debrisVisible: true },
     { lightFactor: 1.15, fogNear: 5, fogFar: 24, debrisVisible: false },
@@ -61,6 +51,7 @@ const CORRIDOR_STATES = [
 export class Corridor {
     constructor(scene, options = {}) {
         this.scene = scene;
+        this.doorFactory = new CorridorDoor();
         this.theme = { ...HOTEL_THEME, ...options.theme };
         this.flickerLights = [];
         this.stateMaterialBindings = [];
@@ -1086,6 +1077,8 @@ export class Corridor {
             currentSegment.frustumCulled = false;
             currentSegment.position.z = -length * i; 
             
+            if (i !== 0) this.addRandomDoor(currentSegment);
+
             this.segments.push(currentSegment);
             this.scene.add(currentSegment);
         }
@@ -1148,6 +1141,43 @@ export class Corridor {
             scene.background.setHex(0x020304);
         }
     }
+
+
+addRandomDoor(segmentGroup) {
+        this.removeDoorFromSegment(segmentGroup);
+
+        // 35% de chance de spawnear puerta en la pared IZQUIERDA
+        if (Math.random() <= 0.35) {
+            const doorLeft = this.doorFactory.getClone(true);
+            doorLeft.traverse((child) => {
+                if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
+            });
+            segmentGroup.add(doorLeft);
+        }
+
+        // 35% de chance de spawnear puerta en la pared DERECHA
+        if (Math.random() <= 0.35) {
+            const doorRight = this.doorFactory.getClone(false);
+            doorRight.traverse((child) => {
+                if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
+            });
+            segmentGroup.add(doorRight);
+        }
+    }
+
+    removeDoorFromSegment(segmentGroup) {
+        // Encontramos TODAS las puertas del segmento (ahora puede haber hasta 2)
+        const oldDoors = segmentGroup.children.filter(c => c.userData && c.userData.isDoorAssembly);
+        oldDoors.forEach(oldDoor => {
+            segmentGroup.remove(oldDoor);
+            oldDoor.traverse((child) => {
+                if (child.userData && child.userData.isCorridorDoor) {
+                    this.interactables = this.interactables.filter(item => item !== child);
+                }
+            });
+        });
+    }
+
     update(time, cameraZ = 0) {
         // 1. Lógica del pasillo infinito (Treadmill por distancia geométrica)
         if (this.segments && this.segments.length > 0) {
@@ -1204,67 +1234,4 @@ export class Corridor {
         });
     }
 
-//   update(time, cameraZ = 0) {
-//         if (!this.segments || this.segments.length < 7) return;
-
-//         const segmentLength = this.segmentLength;
-//         // Queremos mantener siempre 3 segmentos (24 metros) hacia adelante y hacia atrás
-//         const limit = segmentLength * 3; 
-
-//         // 1. Condición hacia ADELANTE (-Z)
-//         // Evaluamos contra el segmento que está más lejos al frente (el último del array)
-//         while (cameraZ < this.segments[this.segments.length - 1].position.z + limit) {
-//             const backSegment = this.segments.shift(); 
-//             const frontSegment = this.segments[this.segments.length - 1];
-            
-//             backSegment.position.z = frontSegment.position.z - segmentLength; 
-//             this.addRandomDoor(backSegment);
-//             this.segments.push(backSegment);
-//         }
-
-//         // 2. Condición hacia ATRÁS (+Z)
-//         // Evaluamos contra el segmento que está más lejos atrás (el primero del array)
-//         while (cameraZ > this.segments[0].position.z - limit) {
-//             const frontSegment = this.segments.pop(); 
-//             const backSegment = this.segments[0];
-            
-//             frontSegment.position.z = backSegment.position.z + segmentLength; 
-//             this.addRandomDoor(frontSegment);
-//             this.segments.unshift(frontSegment);
-//         }
-
-//         if (this.currentState === 1) {
-//             this.flickerLights.forEach((item) => {
-//                 if (time >= item.nextSoftFlickerAt) {
-//                     item.softFlickerUntil = time + 0.12;
-//                     item.nextSoftFlickerAt = time + 8 + Math.random() * 10;
-//                 }
-
-//                 const factor = time < item.softFlickerUntil
-//                     ? 0.88 + Math.sin(time * 35) * 0.04
-//                     : 1;
-//                 item.pointLight.intensity = item.baseIntensityPoint * 1.15 * factor;
-//                 item.spotLight.intensity = item.baseIntensitySpot * 1.15 * factor;
-//                 item.tubeMesh.material.color.setScalar(Math.max(0.75, factor));
-//             });
-//             return;
-//         }
-
-//         if (this.currentState >= 2) return;
-
-//         this.flickerLights.forEach((item, index) => {
-//             // Titileo sutil
-//             const noise = Math.sin(time * 10 + index * 2) * 0.04;
-//             const isFlickerFrame = Math.random() < 0.02;
-
-//             let factor = 1.0 + noise;
-//             if (isFlickerFrame) {
-//                 factor *= 0.3;
-//             }
-
-//             item.pointLight.intensity = item.baseIntensityPoint * factor;
-//             item.spotLight.intensity = item.baseIntensitySpot * factor;
-//             item.tubeMesh.material.color.setScalar(Math.max(0.3, factor));
-//         });
-//     }
 }

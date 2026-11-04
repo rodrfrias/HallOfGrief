@@ -155,7 +155,7 @@ class App {
         if (this.currentRoom) this.unloadRoom(this.currentRoom);
 
         const roomFactories = {
-            Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory)
+           Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState)
         };
         const createRoom = roomFactories[roomName];
         if (!createRoom) {

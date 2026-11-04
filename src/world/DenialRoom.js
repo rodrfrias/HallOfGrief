@@ -101,18 +101,18 @@ export class DenialRoom {
 
         const doorGroup = this.doorFactory.getClone(true, this.initialState);
         doorGroup.position.set(doorX, 0, doorZ);
-        doorGroup.rotation.y = 0; 
+        // IMPORTANTE: Rotamos 180 grados. Ahora la Caja Negra se incrusta en el pasillo invisible,
+        // permitiendo que la puerta abra libremente hacia adentro del cuarto.
+        doorGroup.rotation.y = Math.PI; 
         
         doorGroup.traverse((c) => {
             if (c.userData && c.userData.id === 'corridorDoor') {
-                this.entryDoor = c;
+                c.userData = { id: 'entryDoor', prompt: 'Interactuar' };
+                this.interactables.push(c);
             }
         });
 
-        this.entryDoor.userData = { id: 'entryDoor', prompt: 'Interactuar' };
         this.entryDoorGroup = doorGroup; 
-        
-        this.interactables.push(this.entryDoor);
         this.roomGroup.add(doorGroup);
 
         const debrisMats = [
@@ -180,15 +180,13 @@ export class DenialRoom {
         rightWall.position.set(halfW, H / 2, Z(D / 2));
         group.add(rightWall);
 
-        // --- PAREDES DE FONDO (RELOJ) Y FRENTE (PUERTA) ---
         const backWallMat = baked(this.createRoomWallTexture('back', true));
         const backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), backWallMat);
         backWall.position.set(0, H / 2, backZ);
         group.add(backWall);
 
-        const wSide = (W - 1.2) / 2; // wSide = 1.15
+        const wSide = (W - 1.2) / 2; 
         
-        // Ajuste UV matemático para recortar la textura y simular una pared entera con hueco
         const mapUVs = (geo, uMin, uMax, vMin, vMax) => {
             const uv = geo.attributes.uv;
             for (let i = 0; i < uv.count; i++) {
@@ -217,7 +215,6 @@ export class DenialRoom {
         pTop.rotation.y = Math.PI;
 
         group.add(pLeft, pRight, pTop);
-        // ------------------------------------------------
 
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), baked(this.createRoomFloorTexture()));
         floor.rotation.x = -Math.PI / 2;

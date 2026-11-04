@@ -79,16 +79,17 @@ class App {
             if (!obj) return;
 
             this.audioManager.playClickSound();
+            
             if (obj.userData.id === 'corridorDoor') {
                 this.isTransitioning = true;
                 this.animateDoorAndLoad(obj.parent); 
+                
             } else if (this.currentRoom) {
                 this.currentRoom.interact(obj, (text) => this.showPrompt(text));
                 
                 if (this.currentRoom.isDoorUnlocked && !this.currentRoom.cleared) {
                     this.currentRoom.cleared = true;
-                    const readyForAcceptance = this.gameManager.markRoomCompleted();
-                    if (readyForAcceptance) {
+                    if (this.gameManager.markRoomCompleted()) {
                         this.corridor.setCorridorState(3, this.scene);
                     }
                 }
@@ -109,24 +110,60 @@ class App {
 
     animateDoorAndLoad(doorPivot) {
         if (!doorPivot) return;
+        
+        // Ahora sí: Al abrir la puerta hacia adentro (negativo), se va a sumergir a lo profundo 
+        // de la Caja Negra que acabamos de crear, sin tocar bordes invisibles.
         const targetRot = -Math.PI / 2.2; 
-        const duration = 1200;
+        const duration = 1800; 
         const startRot = doorPivot.rotation.y;
-        const startTime = performance.now();
+
+        const yaw = this.controls.getObject();
+        const startPos = yaw.position.clone();
+        
+        // Calculamos el centro de la puerta globalmente
+        const doorCenter = new THREE.Vector3();
+        doorPivot.parent.getWorldPosition(doorCenter);
+        doorCenter.y = startPos.y; 
+        
+        // Trazamos una línea perfecta desde el jugador hacia el hueco de la puerta
+        const dirToDoor = new THREE.Vector3().subVectors(doorCenter, startPos);
+        dirToDoor.y = 0;
+        dirToDoor.normalize();
+        
+        // El jugador da un mínimo paso atrás (20cm) y luego avanza en línea recta (50cm adentro del marco)
+        const stepBackPos = startPos.clone().addScaledVector(dirToDoor, -0.2); 
+        const stepInPos = doorCenter.clone().addScaledVector(dirToDoor, 0.5); 
+
+        let startTime = null;
 
         const animate = (time) => {
+            if (!startTime) startTime = time;
             let elapsed = time - startTime;
             if (elapsed > duration) elapsed = duration;
             const progress = elapsed / duration;
-            const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+            
+            const ease = progress < 0.5 
+                ? 4 * Math.pow(progress, 3) 
+                : 1 - Math.pow(-2 * progress + 2, 3) / 2;
             
             doorPivot.rotation.y = startRot + (targetRot * ease);
+
+            if (progress < 0.25) {
+                // Paso atrás corto y veloz
+                const p = progress / 0.25;
+                yaw.position.lerpVectors(startPos, stepBackPos, p);
+            } else {
+                // Caminata lenta, recta y de frente hacia el hueco negro
+                const p = (progress - 0.25) / 0.75;
+                const eWalk = p * p; 
+                yaw.position.lerpVectors(stepBackPos, stepInPos, eWalk);
+            }
 
             if (progress < 1) {
                 requestAnimationFrame(animate);
             } else {
                 this.fadeToBlack(() => {
-                    doorPivot.rotation.y = 0;
+                    doorPivot.rotation.y = startRot; 
                     this.loadNextRoom();
                 });
             }
@@ -134,53 +171,94 @@ class App {
         requestAnimationFrame(animate);
     }
 
-    fadeToBlack(callback) {
+   fadeToBlack(callback) {
         this.fadeOverlay.style.opacity = '1';
+        // Sincronizamos a 1500ms exactos para que el CSS termine al 100% de oscuridad
         setTimeout(callback, 1500); 
     }
 
-    fadeIn() {
+    fadeInAndWalk() {
         this.fadeOverlay.style.opacity = '0';
-        setTimeout(() => { this.isTransitioning = false; }, 1500);
+        
+        const yaw = this.controls.getObject();
+        const startPos = yaw.position.clone();
+        
+        const endPos = startPos.clone();
+        endPos.z -= 1.3; 
+        
+        const duration = 2000;
+        let startTime = null;
+        
+        const animateWalk = (time) => {
+            if (!startTime) startTime = time;
+            let elapsed = time - startTime;
+            if (elapsed > duration) elapsed = duration;
+            const progress = elapsed / duration;
+            
+            const ease = 1 - Math.pow(1 - progress, 3);
+            yaw.position.lerpVectors(startPos, endPos, ease);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateWalk);
+            } else {
+                this.isTransitioning = false; 
+            }
+        };
+        requestAnimationFrame(animateWalk);
     }
-
+//Aca
     loadNextRoom() {
         const roomName = this.gameManager.getNextRoom();
         if (!roomName) {
             this.showPrompt('No quedan habitaciones por descubrir.');
-            this.fadeIn();
+            this.fadeOverlay.style.opacity = '0';
+            this.isTransitioning = false;
             return;
         }
 
         if (this.currentRoom) this.unloadRoom(this.currentRoom);
 
         const roomFactories = {
-           Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState)
+            Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState)
         };
         const createRoom = roomFactories[roomName];
         if (!createRoom) {
             this.showPrompt(`La habitación "${roomName}" todavía no está disponible.`);
-            this.fadeIn();
+            this.fadeOverlay.style.opacity = '0';
+            this.isTransitioning = false;
             return;
         }
 
+        // Apagamos el pasillo
         this.corridor.segments.forEach(seg => seg.visible = false);
+        
+        // RESET DE AMBIENTE: Apagamos la niebla clara global para que la sala no tenga resplandores
+        this.scene.background.setHex(0x020304);
+        if (this.scene.fog) {
+            this.scene.fog.color.setHex(0x020304);
+            this.scene.fog.near = 2;
+            this.scene.fog.far = 22;
+        }
+
         this.currentRoom = createRoom();
         
         this.currentRoom.roomGroup.position.set(1000, 0, 0);
         
         const yawObject = this.controls.getObject();
-        yawObject.position.set(1000, 1.6, -9.5); 
-        yawObject.rotation.set(0, Math.PI, 0); 
+        
+        yawObject.position.set(1000, 1.6, -8.2); 
+        yawObject.rotation.set(0, 0, 0); 
         this.controls.pitchObject.rotation.set(0, 0, 0);
         
-        // Forzar recalculo de matriz física
         yawObject.updateMatrixWorld(true);
         this.camera.updateMatrixWorld(true);
         if (this.controls.velocity) this.controls.velocity.set(0,0,0);
         
         this.showPrompt(`Has entrado en: ${roomName}`);
-        this.fadeIn();
+        
+        setTimeout(() => {
+            this.fadeInAndWalk();
+        }, 100);
     }
 
     unloadRoom(roomInstance) {
@@ -222,7 +300,23 @@ class App {
         const delta = this.clock.getDelta();
         const elapsedTime = this.clock.getElapsedTime();
 
-        this.controls.update(delta);
+        if (this.isTransitioning && this.controls.velocity) {
+            this.controls.velocity.set(0, 0, 0);
+        } else {
+            this.controls.update(delta);
+            
+            const yaw = this.controls.getObject();
+            
+            if (!this.currentRoom) {
+                // Límite del pasillo (X = 0)
+                yaw.position.x = Math.max(-0.8, Math.min(0.8, yaw.position.x));
+            } else {
+                // EL FIX DE LA TRAMPA NEGRA: Clampeamos basándonos en X = 1000
+                yaw.position.x = Math.max(1000 - 1.45, Math.min(1000 + 1.45, yaw.position.x));
+                // EL FIX DE LA PUERTA: Límite Z bajado a -8.2 para que no atravieses la madera hacia atrás
+                yaw.position.z = Math.max(-14.7, Math.min(-8.2, yaw.position.z)); 
+            }
+        }
         
         if (!this.currentRoom) {
             this.corridor.update(elapsedTime, this.controls.getObject().position.z); 

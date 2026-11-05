@@ -2,8 +2,8 @@ export class GameManager {
   constructor() {
     // IDs de las habitaciones que instanciará main.js
     this.availableRooms = [
-      "Denial",
-      // 'Anger',
+      // "Denial",
+      'Anger',
       // 'Bargaining',
       // 'Depression',
       // 'Acceptance'

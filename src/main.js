@@ -4,6 +4,7 @@ import { AudioManager } from './core/AudioManager.js';
 import { GameManager } from './core/GameManager.js';
 import { Corridor } from './world/Corridor.js';
 import { DenialRoom } from './world/DenialRoom.js';
+import { AngerRoom } from './world/AngerRoom.js';
 
 class App {
     constructor() {
@@ -219,7 +220,8 @@ class App {
         if (this.currentRoom) this.unloadRoom(this.currentRoom);
 
         const roomFactories = {
-            Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState)
+            Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState),
+            Anger: () => new AngerRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState, this.camera)
         };
         const createRoom = roomFactories[roomName];
         if (!createRoom) {
@@ -270,6 +272,11 @@ class App {
             materials.forEach((material) => material.dispose());
         });
         this.scene.remove(roomInstance.roomGroup);
+
+        this.camera.fov = 75;
+        this.camera.updateProjectionMatrix();
+        this.camera.position.set(0, 0, 0);
+
         if (this.currentRoom === roomInstance) this.currentRoom = null;
     }
 
@@ -294,7 +301,6 @@ class App {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
-
     animate() {
         requestAnimationFrame(() => this.animate());
         const delta = this.clock.getDelta();
@@ -304,27 +310,60 @@ class App {
             this.controls.velocity.set(0, 0, 0);
         } else {
             this.controls.update(delta);
-            
             const yaw = this.controls.getObject();
             
             if (!this.currentRoom) {
-                // Límite del pasillo (X = 0)
                 yaw.position.x = Math.max(-0.8, Math.min(0.8, yaw.position.x));
             } else {
-                // EL FIX DE LA TRAMPA NEGRA: Clampeamos basándonos en X = 1000
-                yaw.position.x = Math.max(1000 - 1.45, Math.min(1000 + 1.45, yaw.position.x));
-                // EL FIX DE LA PUERTA: Límite Z bajado a -8.2 para que no atravieses la madera hacia atrás
+                // Hacemos la colisión un poco más estrecha por si toca AngerRoom (ancho 2.2 -> limite 0.8)
+                // Para DenialRoom (ancho 3.5 -> limite 1.45). Tomamos el límite genérico o podés separar por sala.
+                const limitX = this.currentRoom instanceof DenialRoom ? 1.45 : 0.8;
+                yaw.position.x = Math.max(1000 - limitX, Math.min(1000 + limitX, yaw.position.x));
                 yaw.position.z = Math.max(-14.7, Math.min(-8.2, yaw.position.z)); 
             }
         }
         
         if (!this.currentRoom) {
             this.corridor.update(elapsedTime, this.controls.getObject().position.z); 
+        } else if (this.currentRoom.update) {
+            // EJECUTAMOS EL TEMBLOR
+            this.currentRoom.update(elapsedTime);
         }
         
         this.checkRaycastHover();
         this.renderer.render(this.scene, this.camera);
     }
+
+    // animate() {
+    //     requestAnimationFrame(() => this.animate());
+    //     const delta = this.clock.getDelta();
+    //     const elapsedTime = this.clock.getElapsedTime();
+
+    //     if (this.isTransitioning && this.controls.velocity) {
+    //         this.controls.velocity.set(0, 0, 0);
+    //     } else {
+    //         this.controls.update(delta);
+            
+    //         const yaw = this.controls.getObject();
+            
+    //         if (!this.currentRoom) {
+    //             // Límite del pasillo (X = 0)
+    //             yaw.position.x = Math.max(-0.8, Math.min(0.8, yaw.position.x));
+    //         } else {
+    //             // EL FIX DE LA TRAMPA NEGRA: Clampeamos basándonos en X = 1000
+    //             yaw.position.x = Math.max(1000 - 1.45, Math.min(1000 + 1.45, yaw.position.x));
+    //             // EL FIX DE LA PUERTA: Límite Z bajado a -8.2 para que no atravieses la madera hacia atrás
+    //             yaw.position.z = Math.max(-14.7, Math.min(-8.2, yaw.position.z)); 
+    //         }
+    //     }
+        
+    //     if (!this.currentRoom) {
+    //         this.corridor.update(elapsedTime, this.controls.getObject().position.z); 
+    //     }
+        
+    //     this.checkRaycastHover();
+    //     this.renderer.render(this.scene, this.camera);
+    // }
 }
 
 new App();

@@ -70,7 +70,7 @@ class App {
 
     initRaycaster() {
         this.raycaster = new THREE.Raycaster();
-        this.raycaster.far = 3.0;
+        this.raycaster.far = 2.2; //no tocar, es para no poder interactuar desde muy lejos
         this.uiPrompt = document.getElementById('ui-prompt');
 
         document.addEventListener('click', () => {
@@ -306,6 +306,7 @@ class App {
         const delta = this.clock.getDelta();
         const elapsedTime = this.clock.getElapsedTime();
 
+        // 1. Frenamos durante cinemáticas
         if (this.isTransitioning && this.controls.velocity) {
             this.controls.velocity.set(0, 0, 0);
         } else {
@@ -313,57 +314,36 @@ class App {
             const yaw = this.controls.getObject();
             
             if (!this.currentRoom) {
+                // COLISIÓN DEL PASILLO
                 yaw.position.x = Math.max(-0.8, Math.min(0.8, yaw.position.x));
             } else {
-                // Hacemos la colisión un poco más estrecha por si toca AngerRoom (ancho 2.2 -> limite 0.8)
-                // Para DenialRoom (ancho 3.5 -> limite 1.45). Tomamos el límite genérico o podés separar por sala.
-                const limitX = this.currentRoom instanceof DenialRoom ? 1.45 : 0.8;
+                // COLISIÓN DE LAS HABITACIONES
+                // Verificamos de forma segura en qué sala estamos
+                const isDenial = (this.currentRoom instanceof DenialRoom);
+                const limitX = isDenial ? 1.45 : 0.8;
                 yaw.position.x = Math.max(1000 - limitX, Math.min(1000 + limitX, yaw.position.x));
-                yaw.position.z = Math.max(-14.7, Math.min(-8.2, yaw.position.z)); 
+                
+                // Límite Z dinámico (por si la sala de Ira se estira)
+                let limitZ = -14.7;
+                if (typeof this.currentRoom.getZLimit === 'function') {
+                    limitZ = this.currentRoom.getZLimit();
+                }
+                yaw.position.z = Math.max(limitZ, Math.min(-8.2, yaw.position.z)); 
             }
         }
         
+        // 2. Lógica de renderizado de entornos
         if (!this.currentRoom) {
             this.corridor.update(elapsedTime, this.controls.getObject().position.z); 
-        } else if (this.currentRoom.update) {
-            // EJECUTAMOS EL TEMBLOR
+        } else if (typeof this.currentRoom.update === 'function') {
+            // Ejecuta el temblor y los eventos de AngerRoom
             this.currentRoom.update(elapsedTime);
         }
         
         this.checkRaycastHover();
         this.renderer.render(this.scene, this.camera);
     }
-
-    // animate() {
-    //     requestAnimationFrame(() => this.animate());
-    //     const delta = this.clock.getDelta();
-    //     const elapsedTime = this.clock.getElapsedTime();
-
-    //     if (this.isTransitioning && this.controls.velocity) {
-    //         this.controls.velocity.set(0, 0, 0);
-    //     } else {
-    //         this.controls.update(delta);
-            
-    //         const yaw = this.controls.getObject();
-            
-    //         if (!this.currentRoom) {
-    //             // Límite del pasillo (X = 0)
-    //             yaw.position.x = Math.max(-0.8, Math.min(0.8, yaw.position.x));
-    //         } else {
-    //             // EL FIX DE LA TRAMPA NEGRA: Clampeamos basándonos en X = 1000
-    //             yaw.position.x = Math.max(1000 - 1.45, Math.min(1000 + 1.45, yaw.position.x));
-    //             // EL FIX DE LA PUERTA: Límite Z bajado a -8.2 para que no atravieses la madera hacia atrás
-    //             yaw.position.z = Math.max(-14.7, Math.min(-8.2, yaw.position.z)); 
-    //         }
-    //     }
-        
-    //     if (!this.currentRoom) {
-    //         this.corridor.update(elapsedTime, this.controls.getObject().position.z); 
-    //     }
-        
-    //     this.checkRaycastHover();
-    //     this.renderer.render(this.scene, this.camera);
-    // }
+   
 }
 
 new App();

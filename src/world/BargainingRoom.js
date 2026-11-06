@@ -38,7 +38,8 @@ export class BargainingRoom {
         this.clockTime = 0;
 
         this.lastTime = null;
-        this.ambientCol = new THREE.Color(0x3a2005); 
+        // Tono ámbar más claro y suave para la transición
+        this.ambientCol = new THREE.Color(0x6b4423); 
         
         this.wallProps = []; 
         
@@ -48,19 +49,20 @@ export class BargainingRoom {
     getZLimit() { return this.doorZ - this.roomD + 0.5; }
     getXLimit() { return (this.currentW / 2) - 0.4; }
 
-    /* ---------- TEXTURAS AMBAR/SEPIA ---------- */
+    /* ---------- TEXTURAS AMBAR/SEPIA (Más claras) ---------- */
     createWallTexture() {
         const w = 512, h = 512;
         const cv = canvasOf(w, h);
         const c = cv.getContext('2d');
         const g = c.createLinearGradient(0, 0, 0, h);
-        g.addColorStop(0, '#2e1c0d');
-        g.addColorStop(0.5, '#4a2f18');
-        g.addColorStop(1, '#1c1007');
+        // Tonos madera sepia más suaves y ambarinos
+        g.addColorStop(0, '#3f2716');
+        g.addColorStop(0.5, '#664225');
+        g.addColorStop(1, '#26160b');
         c.fillStyle = g; c.fillRect(0, 0, w, h);
 
         for (let i = 0; i < 4000; i++) {
-            c.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.2)' : 'rgba(255,200,100,0.05)';
+            c.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,200,100,0.06)';
             c.fillRect(rnd(0, w), rnd(0, h), 2, 2);
         }
         return texOf(cv);
@@ -122,8 +124,8 @@ export class BargainingRoom {
 
         const wallTex = this.createWallTexture();
         const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, metalness: 0.1 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1f1107, roughness: 0.8 });
-        const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x0f0702, roughness: 1.0 });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0f, roughness: 0.8 }); // Más claro
+        const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1c1008, roughness: 1.0 });
 
         this.leftWall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wallMat);
         this.leftWall.rotation.y = Math.PI / 2;
@@ -145,8 +147,9 @@ export class BargainingRoom {
 
         this.roomGroup.add(this.leftWall, this.rightWall, this.backWall, this.pLeft, this.pRight, this.pTop, this.floor, this.ceiling);
 
-        this.ambient = new THREE.AmbientLight(0xffb56b, 0.2); 
-        this.mainLight = new THREE.PointLight(0xff9900, 2.0, 15);
+        // Iluminación más suave, cálida y envolvente
+        this.ambient = new THREE.AmbientLight(0xffcc88, 0.4); 
+        this.mainLight = new THREE.PointLight(0xffb866, 2.5, 18);
         this.roomGroup.add(this.ambient, this.mainLight);
 
         this.buildFurnitureAndObjects();
@@ -187,6 +190,28 @@ export class BargainingRoom {
 
         this.mainLight.position.set(0, h - 0.5, centerZ);
 
+        // --- FIX DEL ERROR VISUAL DE LA PARED FRONTAL (MAPEO UV) ---
+        // Cortamos el mapa UV dinámicamente para que las 3 piezas (izq, der, arriba) 
+        // muestren la textura como si fuera una sola pared unida sin costuras.
+        const setUVs = (mesh, uMin, uMax, vMin, vMax) => {
+            const uv = mesh.geometry.attributes.uv;
+            if (!uv) return;
+            uv.setXY(0, uMin, vMax); // top-left
+            uv.setXY(1, uMax, vMax); // top-right
+            uv.setXY(2, uMin, vMin); // bottom-left
+            uv.setXY(3, uMax, vMin); // bottom-right
+            uv.needsUpdate = true;
+        };
+
+        const u1 = pSide / w;
+        const u2 = (pSide + 1.2) / w;
+        const v1 = 2.2 / h;
+
+        setUVs(this.pRight, 0, u1, 0, 1);
+        setUVs(this.pTop, u1, u2, v1, 1);
+        setUVs(this.pLeft, u2, 1, 0, 1);
+
+        // --- SISTEMA DE POSICIONAMIENTO PROPORCIONAL ---
         const scaleX = w / this.baseW;
         if (this.wallProps) {
             this.wallProps.forEach(obj => {
@@ -207,35 +232,41 @@ export class BargainingRoom {
 
     /* ---------- MUEBLES Y OBJETOS ---------- */
     buildFurnitureAndObjects() {
-        const woodMat = new THREE.MeshStandardMaterial({ map: this.createWoodTexture([80, 50, 30]), roughness: 0.8 });
+        const woodMat = new THREE.MeshStandardMaterial({ map: this.createWoodTexture([85, 55, 35]), roughness: 0.8 });
         
+        // Mesa del fondo (ahora con su propio material que va a emitir luz de forma homogénea)
+        this.tableMat = new THREE.MeshStandardMaterial({ 
+            map: this.createWoodTexture([100, 65, 40]), 
+            emissive: 0xcc7722, // Ámbar suave
+            emissiveIntensity: 0, 
+            roughness: 0.8 
+        });
+
         this.tableGroup = new THREE.Group();
-        const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.8), woodMat);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.8), this.tableMat);
         top.position.y = 0.9;
+        
+        // Hacemos que la tabla de la mesa sea el interactuable
+        top.userData = { id: 'bargain_table', prompt: 'Aún no es momento de soltar' };
+        this.interactables.push(top);
+
         const legGeo = new THREE.CylinderGeometry(0.04, 0.02, 0.9);
         const positions = [[-0.65, -0.3], [0.65, -0.3], [-0.65, 0.3], [0.65, 0.3]];
         positions.forEach(pos => {
-            const leg = new THREE.Mesh(legGeo, woodMat);
+            const leg = new THREE.Mesh(legGeo, this.tableMat);
             leg.position.set(pos[0], 0.45, pos[1]);
             this.tableGroup.add(leg);
         });
         
-        this.tableGlowMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffaa00, emissiveIntensity: 0, transparent: true, opacity: 0.8 });
-        const glowPad = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), this.tableGlowMat);
-        glowPad.rotation.x = -Math.PI / 2;
-        glowPad.position.y = 0.93;
-        glowPad.userData = { id: 'bargain_table', prompt: 'Aún no es momento de soltar' };
-        
-        this.tableGroup.add(top, glowPad);
+        this.tableGroup.add(top);
         this.tableGroup.position.set(0, 0, this.doorZ - 6.0); 
         this.roomGroup.add(this.tableGroup);
-        this.interactables.push(glowPad);
 
         this.objects = [];
+        // Objetos con un brillo sutil
         this.glowMat = new THREE.MeshStandardMaterial({ color: 0x555555, emissive: 0xffaa00, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.5 });
         const paperMat = new THREE.MeshStandardMaterial({ map: this.createPaperTexture(), emissive: 0xffaa00, emissiveIntensity: 0.4, side: THREE.DoubleSide });
 
-        // Helper arreglado: clona materiales para apagar independiente y mapea grupos (como la llave) para el raycaster
         const createObj = (mesh, name, x, y, z) => {
             mesh.position.set(x, y, z);
             
@@ -245,11 +276,9 @@ export class BargainingRoom {
                 }
             });
 
-            // Agregamos "root: mesh" para que al hacer clic en una pieza, agarres todo el objeto entero
             mesh.userData = { id: 'bargain_obj', prompt: `Agarrar ${name}`, originalPos: mesh.position.clone(), originalRot: mesh.rotation.clone(), baseX: x, placed: false, root: mesh };
             this.roomGroup.add(mesh);
             
-            // Empujamos todas las mallas al raycaster
             mesh.traverse(child => {
                 if (child.isMesh) {
                     child.userData = mesh.userData;
@@ -370,7 +399,7 @@ export class BargainingRoom {
 
         // 2. CLICK EN UN OBJETO PARA AGARRARLO
         if (id === 'bargain_obj') {
-            const root = object.userData.root; // Referencia al grupo/malla original entero
+            const root = object.userData.root; 
             
             if (this.heldObject) {
                 tempMsg('Ya tienes algo en la mano.');
@@ -397,16 +426,15 @@ export class BargainingRoom {
             if (this.heldObject) {
                 this.roomGroup.add(this.heldObject);
                 const slotX = -0.45 + (this.objectsPlaced * 0.3);
-                this.heldObject.position.set(slotX, 1.0, this.doorZ - 5.8);
+                // Ajustamos la altura (Y=0.95) y la Z para que apoyen sobre la tabla sin atravesarla
+                this.heldObject.position.set(slotX, 0.95, this.doorZ - 6.0);
                 this.heldObject.rotation.set(Math.PI/2, 0, 0); 
                 this.heldObject.userData.placed = true; 
                 
-                // Apagamos los materiales de todas las piezas que conforman el objeto
                 this.heldObject.traverse(child => {
                     if (child.isMesh && child.material) child.material.emissiveIntensity = 0;
                 });
                 
-                // Retiramos todas las piezas del raycaster
                 this.heldObject.traverse(child => {
                     if (child.isMesh) {
                         const idx = this.interactables.indexOf(child);
@@ -432,13 +460,13 @@ export class BargainingRoom {
         if (this.failedAttempts >= this.maxFails && this.state === 'SEARCHING') {
             this.state = 'LETTING_GO';
             
-            // Apagamos los objetos levemente
             this.objects.forEach(obj => {
                 obj.traverse(child => {
                     if (child.isMesh && child.material) child.material.emissiveIntensity = 0.1;
                 });
             });
-            this.tableGlowMat.emissiveIntensity = 1.0;
+            // Toda la mesa emite un resplandor suave y uniforme
+            this.tableMat.emissiveIntensity = 0.35;
             
             const mesa = this.interactables.find(i => i.userData.id === 'bargain_table');
             if (mesa) mesa.userData.prompt = 'Soltar aquí (Interactuar)';
@@ -455,7 +483,7 @@ export class BargainingRoom {
         this.state = 'RESOLVED';
         this.isDoorUnlocked = true;
         
-        this.tableGlowMat.emissiveIntensity = 0; 
+        this.tableMat.emissiveIntensity = 0; 
         
         this.entryDoorGroup.userData.setState(2);
         this.entryDoorGroup.traverse((c) => {
@@ -491,9 +519,9 @@ export class BargainingRoom {
 
         // 2. Luz de ambiente
         if (this.state === 'LETTING_GO') {
-            this.ambient.intensity = 0.2 + Math.sin(time * 3) * 0.1;
+            this.ambient.intensity = 0.4 + Math.sin(time * 3) * 0.1;
         } else if (this.state === 'RESOLVED') {
-            this.ambient.intensity += (0.6 - this.ambient.intensity) * dt * 2.0;
+            this.ambient.intensity += (0.8 - this.ambient.intensity) * dt * 2.0;
             this.ambient.color.lerp(new THREE.Color(0xffe6c2), dt); 
         }
 

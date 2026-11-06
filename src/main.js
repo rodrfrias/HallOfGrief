@@ -12,6 +12,7 @@ class App {
     this.clock = new THREE.Clock();
     this.gameManager = new GameManager();
     this.currentRoom = null;
+    this.lastDoorPivot = null;
     AngerRoom.preloadFonts();
     this.initScene();
     this.initCore();
@@ -102,15 +103,21 @@ class App {
 
       if (obj.userData.id === "corridorDoor") {
         this.isTransitioning = true;
+        this.lastDoorPivot = obj.parent;
         this.animateDoorAndLoad(obj.parent);
       } else if (this.currentRoom) {
-        this.currentRoom.interact(obj, (text) => this.showPrompt(text));
 
+
+        if (obj.userData.id && obj.userData.id.startsWith("entryDoor") && this.currentRoom.isDoorUnlocked) {
+            this.isTransitioning = true;
+            this.animateExitAndLoad(obj.parent);
+            return;
+        }
+        this.currentRoom.interact(obj, (text) => this.showPrompt(text));
+//ACA
         if (this.currentRoom.isDoorUnlocked && !this.currentRoom.cleared) {
           this.currentRoom.cleared = true;
-          if (this.gameManager.markRoomCompleted()) {
-            this.corridor.setCorridorState(3, this.scene);
-          }
+          this.gameManager.markRoomCompleted();
         }
       }
     });
@@ -229,6 +236,15 @@ class App {
       }
     };
     requestAnimationFrame(animateWalk);
+
+    // Recorremos la puerta que acabamos de usar y le cambiamos su identidad.
+            // Al dejar de llamarse "corridorDoor", ya no se puede cliquear.
+            this.lastDoorPivot.traverse((child) => {
+                if (child.userData && child.userData.id === "corridorDoor") {
+                    child.userData.id = "lockedDoor";
+                    child.userData.prompt = "Ya no necesitas volver. El camino sigue adelante.";
+                }
+            });
   }
   //Aca
   loadNextRoom() {
@@ -297,6 +313,137 @@ class App {
     setTimeout(() => {
       this.fadeInAndWalk();
     }, 100);
+  }
+
+  //ACA
+  animateExitAndLoad(innerDoorPivot) {
+    if (!innerDoorPivot) return;
+
+    const targetRot = -Math.PI / 2.2; 
+    const duration = 1800;
+    const startRot = innerDoorPivot.rotation.y;
+    const yaw = this.controls.getObject();
+    const startPos = yaw.position.clone();
+    
+    const doorCenter = new THREE.Vector3();
+    innerDoorPivot.parent.getWorldPosition(doorCenter);
+    doorCenter.y = startPos.y;
+
+    const dirToDoor = new THREE.Vector3().subVectors(doorCenter, startPos);
+    dirToDoor.y = 0;
+    dirToDoor.normalize();
+
+    const stepBackPos = startPos.clone().addScaledVector(dirToDoor, -0.2);
+    const stepInPos = doorCenter.clone().addScaledVector(dirToDoor, 0.5);
+
+    let startTime = null;
+    let fadeStarted = false;
+
+    const animate = (time) => {
+      if (!startTime) startTime = time;
+      let elapsed = time - startTime;
+      if (elapsed > duration) elapsed = duration;
+      const progress = elapsed / duration;
+
+      const ease = progress < 0.5 ? 4 * Math.pow(progress, 3) : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      innerDoorPivot.rotation.y = startRot + targetRot * ease;
+
+      if (progress < 0.25) {
+        const p = progress / 0.25;
+        yaw.position.lerpVectors(startPos, stepBackPos, p);
+      } else {
+        const p = (progress - 0.25) / 0.75;
+        const eWalk = p * p;
+        yaw.position.lerpVectors(stepBackPos, stepInPos, eWalk);
+      }
+
+      if (progress >= 0.25 && !fadeStarted) {
+          fadeStarted = true;
+          this.fadeOverlay.style.opacity = "1";
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setTimeout(() => {
+          this.loadCorridorBack();
+        }, 200);
+      }
+    };
+    requestAnimationFrame(animate);
+  }
+
+  loadCorridorBack() {
+    this.unloadRoom(this.currentRoom);
+    this.corridor.segments.forEach((seg) => (seg.visible = true));
+
+    // Actualiza aspecto del pasillo
+    const newState = this.gameManager.getCorridorState();
+    this.corridor.setCorridorState(newState, this.scene);
+
+    // TELETRANSPORTE AL ANCLA (A la caja negra en X=0)
+    const doorGroup = this.lastDoorPivot.parent;
+    const doorWorldPos = new THREE.Vector3();
+    doorGroup.getWorldPosition(doorWorldPos);
+
+    const isLeft = doorWorldPos.x < 0;
+    const startX = isLeft ? -1.75 : 1.75; 
+    
+    const yawObject = this.controls.getObject();
+    yawObject.position.set(startX, 1.6, doorWorldPos.z);
+    
+    yawObject.rotation.set(0, isLeft ? -Math.PI / 2 : Math.PI / 2, 0);
+    this.controls.pitchObject.rotation.set(0, 0, 0);
+
+    yawObject.updateMatrixWorld(true);
+    this.camera.updateMatrixWorld(true);
+    if (this.controls.velocity) this.controls.velocity.set(0, 0, 0);
+
+    // Dejamos la puerta de madera abierta en el pasillo
+    this.lastDoorPivot.rotation.y = -Math.PI / 2.2;
+    
+    setTimeout(() => {
+        this.fadeInAndWalkOut();
+    }, 100);
+  }
+
+  fadeInAndWalkOut() {
+    this.fadeOverlay.style.opacity = "0";
+
+    const yaw = this.controls.getObject();
+    const startPos = yaw.position.clone();
+    
+    const endPos = startPos.clone();
+    endPos.x = 0; // Caminar al centro del pasillo
+
+    const duration = 2000;
+    const startRot = this.lastDoorPivot.rotation.y;
+    const targetRot = 0; 
+
+    let startTime = null;
+
+    const animateWalk = (time) => {
+        if (!startTime) startTime = time;
+        let elapsed = time - startTime;
+        if (elapsed > duration) elapsed = duration;
+        const progress = elapsed / duration;
+
+        const ease = 1 - Math.pow(1 - progress, 3);
+        yaw.position.lerpVectors(startPos, endPos, ease);
+
+        const doorProgress = Math.max(0, (progress - 0.2) / 0.8);
+        const easeDoor = doorProgress < 0.5 ? 4 * Math.pow(doorProgress, 3) : 1 - Math.pow(-2 * doorProgress + 2, 3) / 2;
+        this.lastDoorPivot.rotation.y = startRot + (targetRot - startRot) * easeDoor;
+
+        if (progress < 1) {
+            requestAnimationFrame(animateWalk);
+        } else {
+            this.lastDoorPivot.rotation.y = 0;
+            this.isTransitioning = false;
+            this.audioManager.playClickSound(); 
+        }
+    };
+    requestAnimationFrame(animateWalk);
   }
 
   unloadRoom(roomInstance) {

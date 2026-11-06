@@ -2,10 +2,10 @@ export class GameManager {
     constructor() {
         // Todas las salas menos Aceptación
         this.availableRooms = [
-            'Denial',
-            'Anger',
+            // 'Denial',
+            // 'Anger',
             'Bargaining',
-            'Depression'
+            // 'Depression'
         ];
         
         this.completedRooms = 0;

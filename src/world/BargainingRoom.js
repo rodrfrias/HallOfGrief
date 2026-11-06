@@ -38,7 +38,6 @@ export class BargainingRoom {
         this.clockTime = 0;
 
         this.lastTime = null;
-        // Tono ámbar más claro y suave para la transición
         this.ambientCol = new THREE.Color(0x6b4423); 
         
         this.wallProps = []; 
@@ -49,13 +48,12 @@ export class BargainingRoom {
     getZLimit() { return this.doorZ - this.roomD + 0.5; }
     getXLimit() { return (this.currentW / 2) - 0.4; }
 
-    /* ---------- TEXTURAS AMBAR/SEPIA (Más claras) ---------- */
+    /* ---------- TEXTURAS AMBAR/SEPIA ---------- */
     createWallTexture() {
         const w = 512, h = 512;
         const cv = canvasOf(w, h);
         const c = cv.getContext('2d');
         const g = c.createLinearGradient(0, 0, 0, h);
-        // Tonos madera sepia más suaves y ambarinos
         g.addColorStop(0, '#3f2716');
         g.addColorStop(0.5, '#664225');
         g.addColorStop(1, '#26160b');
@@ -68,20 +66,42 @@ export class BargainingRoom {
         return texOf(cv);
     }
 
-    createPaperTexture() {
+    createPaperTexture(phrase) {
         const w = 128, h = 256;
         const cv = canvasOf(w, h);
         const c = cv.getContext('2d');
         c.fillStyle = '#e8dcc5'; c.fillRect(0, 0, w, h);
         
-        c.strokeStyle = 'rgba(60, 40, 20, 0.4)';
-        c.lineWidth = 2;
+        c.strokeStyle = 'rgba(60, 40, 20, 0.25)';
+        c.lineWidth = 1.5;
         for (let y = 30; y < h - 20; y += 18) {
             c.beginPath();
-            c.moveTo(20, y + rnd(-2, 2));
-            c.lineTo(w - 20, y + rnd(-2, 2));
+            c.moveTo(15, y + rnd(-1, 1));
+            c.lineTo(w - 15, y + rnd(-1, 1));
             c.stroke();
         }
+
+        c.fillStyle = 'rgba(30, 15, 10, 0.85)';
+        c.font = '600 14px "Courier New", monospace'; 
+        c.textAlign = 'center';
+        c.textBaseline = 'bottom';
+        
+        const words = phrase.split(' ');
+        let line = '';
+        let yText = 48; 
+        
+        for (let i = 0; i < words.length; i++) {
+            const testLine = line + words[i] + ' ';
+            if (c.measureText(testLine).width > w - 24 && i > 0) {
+                c.fillText(line, w/2, yText);
+                line = words[i] + ' ';
+                yText += 18; 
+            } else {
+                line = testLine;
+            }
+        }
+        c.fillText(line, w/2, yText);
+        
         return texOf(cv);
     }
 
@@ -114,7 +134,7 @@ export class BargainingRoom {
 
         doorGroup.traverse((c) => {
             if (c.userData && c.userData.id === 'corridorDoor') {
-                c.userData = { id: 'entryDoor_bargaining', prompt: 'Probar suerte (Interactuar)' };
+                c.userData = { id: 'entryDoor_bargaining', prompt: 'Interactuar' };
                 this.interactables.push(c);
             }
         });
@@ -124,7 +144,7 @@ export class BargainingRoom {
 
         const wallTex = this.createWallTexture();
         const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, metalness: 0.1 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0f, roughness: 0.8 }); // Más claro
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0f, roughness: 0.8 }); 
         const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1c1008, roughness: 1.0 });
 
         this.leftWall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wallMat);
@@ -147,7 +167,6 @@ export class BargainingRoom {
 
         this.roomGroup.add(this.leftWall, this.rightWall, this.backWall, this.pLeft, this.pRight, this.pTop, this.floor, this.ceiling);
 
-        // Iluminación más suave, cálida y envolvente
         this.ambient = new THREE.AmbientLight(0xffcc88, 0.4); 
         this.mainLight = new THREE.PointLight(0xffb866, 2.5, 18);
         this.roomGroup.add(this.ambient, this.mainLight);
@@ -190,16 +209,13 @@ export class BargainingRoom {
 
         this.mainLight.position.set(0, h - 0.5, centerZ);
 
-        // --- FIX DEL ERROR VISUAL DE LA PARED FRONTAL (MAPEO UV) ---
-        // Cortamos el mapa UV dinámicamente para que las 3 piezas (izq, der, arriba) 
-        // muestren la textura como si fuera una sola pared unida sin costuras.
         const setUVs = (mesh, uMin, uMax, vMin, vMax) => {
             const uv = mesh.geometry.attributes.uv;
             if (!uv) return;
-            uv.setXY(0, uMin, vMax); // top-left
-            uv.setXY(1, uMax, vMax); // top-right
-            uv.setXY(2, uMin, vMin); // bottom-left
-            uv.setXY(3, uMax, vMin); // bottom-right
+            uv.setXY(0, uMin, vMax); 
+            uv.setXY(1, uMax, vMax); 
+            uv.setXY(2, uMin, vMin); 
+            uv.setXY(3, uMax, vMin); 
             uv.needsUpdate = true;
         };
 
@@ -211,7 +227,6 @@ export class BargainingRoom {
         setUVs(this.pTop, u1, u2, v1, 1);
         setUVs(this.pLeft, u2, 1, 0, 1);
 
-        // --- SISTEMA DE POSICIONAMIENTO PROPORCIONAL ---
         const scaleX = w / this.baseW;
         if (this.wallProps) {
             this.wallProps.forEach(obj => {
@@ -234,10 +249,9 @@ export class BargainingRoom {
     buildFurnitureAndObjects() {
         const woodMat = new THREE.MeshStandardMaterial({ map: this.createWoodTexture([85, 55, 35]), roughness: 0.8 });
         
-        // Mesa del fondo (ahora con su propio material que va a emitir luz de forma homogénea)
         this.tableMat = new THREE.MeshStandardMaterial({ 
             map: this.createWoodTexture([100, 65, 40]), 
-            emissive: 0xcc7722, // Ámbar suave
+            emissive: 0xcc7722, 
             emissiveIntensity: 0, 
             roughness: 0.8 
         });
@@ -246,8 +260,7 @@ export class BargainingRoom {
         const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.8), this.tableMat);
         top.position.y = 0.9;
         
-        // Hacemos que la tabla de la mesa sea el interactuable
-        top.userData = { id: 'bargain_table', prompt: 'Aún no es momento de soltar' };
+        top.userData = { id: 'bargain_table', prompt: '' }; // Sin pistas explicitas
         this.interactables.push(top);
 
         const legGeo = new THREE.CylinderGeometry(0.04, 0.02, 0.9);
@@ -263,17 +276,13 @@ export class BargainingRoom {
         this.roomGroup.add(this.tableGroup);
 
         this.objects = [];
-        // Objetos con un brillo sutil
         this.glowMat = new THREE.MeshStandardMaterial({ color: 0x555555, emissive: 0xffaa00, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.5 });
-        const paperMat = new THREE.MeshStandardMaterial({ map: this.createPaperTexture(), emissive: 0xffaa00, emissiveIntensity: 0.4, side: THREE.DoubleSide });
+        const blankPaperMat = new THREE.MeshStandardMaterial({ map: this.createPaperTexture(""), emissive: 0xffaa00, emissiveIntensity: 0.4 });
 
         const createObj = (mesh, name, x, y, z) => {
             mesh.position.set(x, y, z);
-            
             mesh.traverse(child => {
-                if (child.isMesh && child.material) {
-                    child.material = child.material.clone();
-                }
+                if (child.isMesh && child.material) child.material = child.material.clone();
             });
 
             mesh.userData = { id: 'bargain_obj', prompt: `Agarrar ${name}`, originalPos: mesh.position.clone(), originalRot: mesh.rotation.clone(), baseX: x, placed: false, root: mesh };
@@ -290,12 +299,10 @@ export class BargainingRoom {
             this.wallProps.push(mesh);
         };
 
-        // 1. Anillo
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.015, 16, 32), this.glowMat);
         ring.rotation.x = Math.PI / 2;
         createObj(ring, "Anillo", -1.0, 0.05, this.doorZ - 3);
 
-        // 2. Llave y estante
         const keyGroup = new THREE.Group();
         const keyBase = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.15), this.glowMat);
         const keyHead = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01), this.glowMat);
@@ -312,9 +319,8 @@ export class BargainingRoom {
         this.roomGroup.add(shelf1);
         this.wallProps.push(shelf1);
 
-        // 3. Reloj de Bolsillo y estante
         const watch = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 32), this.glowMat);
-        createObj(watch, "Reloj de Bolsillo", -1.3, 0.85, this.doorZ - 5.5);
+        createObj(watch, "Reloj de bolsillo", -1.3, 0.85, this.doorZ - 5.5);
 
         const shelf2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.3), woodMat);
         shelf2.position.set(-1.4, 0.8, this.doorZ - 5.5);
@@ -322,8 +328,7 @@ export class BargainingRoom {
         this.roomGroup.add(shelf2);
         this.wallProps.push(shelf2);
 
-        // 4. Carta Abierta
-        const letter = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.2), paperMat);
+        const letter = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.2), blankPaperMat);
         letter.rotation.x = -Math.PI / 2 + 0.1;
         createObj(letter, "Carta", 0.5, 0.05, this.doorZ - 2.5);
 
@@ -333,33 +338,66 @@ export class BargainingRoom {
         this.roomGroup.add(clockData.group);
     }
 
-    /* ---------- PAPELES FLOTANTES ---------- */
+    
+
+   /* ---------- PAPELES FLOTANTES (Múltiples InstancedMesh por rendimiento) ---------- */
     buildFloatingPapers() {
-        this.paperCount = 150;
-        const geo = new THREE.PlaneGeometry(0.2, 0.28);
-        const mat = new THREE.MeshStandardMaterial({ map: this.createPaperTexture(), side: THREE.DoubleSide, roughness: 0.9 });
+        const phrases = [
+           "¿Y si hubiera estado ahí?",
+            "¿Si me hubiera dado cuenta?",
+            "Daría mi vida por volver",
+            "Solo un día más",
+            "No volveré a fallar",
+            "¿Por qué no yo?"
+        ];
         
-        this.papers = new THREE.InstancedMesh(geo, mat, this.paperCount);
+        const papersPerPhrase = 25; 
+        this.paperCount = phrases.length * papersPerPhrase;
+        
+        this.paperGroups = [];
         this.paperData = [];
 
-        const dummy = new THREE.Object3D();
-        for (let i = 0; i < this.paperCount; i++) {
-            const baseX = rnd(-1.5, 1.5); 
-            const z = this.doorZ - rnd(1, 6.5);
-            const baseY = rnd(0.5, 2.5);
+        const geo = new THREE.BoxGeometry(0.2, 0.28, 0.002); 
+        
+        // 1. Creamos UN SOLO material en blanco (con renglones pero sin texto) para reciclarlo
+        const blankTex = this.createPaperTexture("");
+        const blankMat = new THREE.MeshStandardMaterial({ map: blankTex, roughness: 0.9 });
+        
+        phrases.forEach((phrase, groupIdx) => {
+            const tex = this.createPaperTexture(phrase);
+            const textMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 });
             
-            this.paperData.push({
-                baseX, baseY, currentY: baseY, z,
-                rotX: rnd(0, Math.PI*2), rotY: rnd(0, Math.PI*2), rotZ: rnd(0, Math.PI*2),
-                speed: rnd(0.5, 1.5), phase: rnd(0, Math.PI*2)
-            });
+            // 2. Un cubo en Three.js tiene 6 caras en este orden exacto:
+            // [Derecha, Izquierda, Arriba, Abajo, Frente, Dorso]
+            const materials = [
+                blankMat, // 0: Derecha
+                blankMat, // 1: Izquierda
+                blankMat, // 2: Arriba
+                blankMat, // 3: Abajo
+                textMat,  // 4: FRENTE (Acá va el texto)
+                blankMat  // 5: DORSO (Acá va en blanco)
+            ];
 
-            dummy.position.set(baseX, baseY, z);
-            dummy.rotation.set(rnd(0, Math.PI), rnd(0, Math.PI), rnd(0, Math.PI));
-            dummy.updateMatrix();
-            this.papers.setMatrixAt(i, dummy.matrix);
-        }
-        this.roomGroup.add(this.papers);
+            // Le pasamos la lista de materiales en lugar de uno solo
+            const instMesh = new THREE.InstancedMesh(geo, materials, papersPerPhrase);
+            
+            this.roomGroup.add(instMesh);
+            this.paperGroups.push(instMesh);
+
+            for (let i = 0; i < papersPerPhrase; i++) {
+                const baseX = rnd(-1.5, 1.5); 
+                const z = this.doorZ - rnd(1, 6.5);
+                const baseY = rnd(0.5, 2.5);
+                
+                this.paperData.push({
+                    groupIdx,
+                    instanceIdx: i,
+                    baseX, baseY, currentY: baseY, z,
+                    rotX: rnd(0, Math.PI*2), rotY: rnd(0, Math.PI*2), rotZ: rnd(0, Math.PI*2),
+                    speed: rnd(0.5, 1.5), phase: rnd(0, Math.PI*2)
+                });
+            }
+        });
     }
 
     /* ---------- LÓGICA DE INTERACCIÓN ---------- */
@@ -367,21 +405,20 @@ export class BargainingRoom {
         const id = object.userData.id;
         
         const tempMsg = (msg) => {
+            if (!msg) return; // Si no hay mensaje, solo hace la acción en silencio
             const old = object.userData.prompt;
             object.userData.prompt = msg;
             uiPromptCallback(msg);
             setTimeout(() => { if (object && object.userData) object.userData.prompt = old; }, 2000);
         };
 
-        // 1. CLICK EN LA PUERTA
         if (id === 'entryDoor_bargaining') {
             if (this.state === 'RESOLVED') {
-                tempMsg('Salir de la Negociación (Interactuar)');
                 return;
             }
 
             if (this.heldObject) {
-                tempMsg('Ese trato no sirve de nada...');
+                tempMsg('La habitación rechaza tu oferta.');
                 this.audio?.playSoft(200); 
                 
                 this.roomGroup.add(this.heldObject);
@@ -392,12 +429,11 @@ export class BargainingRoom {
                 this.failedAttempts++;
                 this.checkStateTransition();
             } else {
-                tempMsg('La puerta está bloqueada. Tienes que ofrecer algo a cambio.');
+                tempMsg('Esta bloqueda. Todavía intentás encontrar otra salida');
             }
             return;
         }
 
-        // 2. CLICK EN UN OBJETO PARA AGARRARLO
         if (id === 'bargain_obj') {
             const root = object.userData.root; 
             
@@ -411,22 +447,18 @@ export class BargainingRoom {
             root.position.set(0.2, -0.2, -0.4); 
             root.rotation.set(0, 0, 0);
             
-            tempMsg(this.state === 'LETTING_GO' ? 'Llevalo a la mesa.' : 'Quizás esto funcione en la puerta...');
             this.audio?.playClickSound();
-            return;
+            return; // Silencio, el jugador se da cuenta solo que lo agarró
         }
 
-        // 3. CLICK EN LA MESA PARA SOLTAR
         if (id === 'bargain_table') {
             if (this.state !== 'LETTING_GO') {
-                tempMsg(object.userData.prompt); 
-                return;
+                return; // Silencio si tocas la mesa antes de tiempo
             }
 
             if (this.heldObject) {
                 this.roomGroup.add(this.heldObject);
                 const slotX = -0.45 + (this.objectsPlaced * 0.3);
-                // Ajustamos la altura (Y=0.95) y la Z para que apoyen sobre la tabla sin atravesarla
                 this.heldObject.position.set(slotX, 0.95, this.doorZ - 6.0);
                 this.heldObject.rotation.set(Math.PI/2, 0, 0); 
                 this.heldObject.userData.placed = true; 
@@ -445,13 +477,10 @@ export class BargainingRoom {
                 this.heldObject = null;
                 this.objectsPlaced++;
                 this.audio?.playTick(); 
-                tempMsg('Soltando...');
 
                 if (this.objectsPlaced >= 4) {
                     this.resolveRoom(uiPromptCallback);
                 }
-            } else {
-                tempMsg('Agarrá los objetos y dejalos aquí.');
             }
         }
     }
@@ -465,18 +494,18 @@ export class BargainingRoom {
                     if (child.isMesh && child.material) child.material.emissiveIntensity = 0.1;
                 });
             });
-            // Toda la mesa emite un resplandor suave y uniforme
-            this.tableMat.emissiveIntensity = 0.35;
+            // La mesa empieza a brillar en el update() con un pulso
             
             const mesa = this.interactables.find(i => i.userData.id === 'bargain_table');
-            if (mesa) mesa.userData.prompt = 'Soltar aquí (Interactuar)';
-
+            if (mesa) mesa.userData.prompt = 'Dejarlo ir';
+            
             const ui = document.getElementById('ui-prompt');
             if (ui) {
-                ui.innerText = 'No hay tratos posibles. Tenés que dejarlos ir.';
+                ui.innerText = 'No hay tratos posibles.';
                 setTimeout(() => { if(ui.innerText.includes('tratos')) ui.innerText = ''; }, 4000);
             }
-        }
+        
+          }
     }
 
     resolveRoom(uiPromptCallback) {
@@ -488,12 +517,12 @@ export class BargainingRoom {
         this.entryDoorGroup.userData.setState(2);
         this.entryDoorGroup.traverse((c) => {
             if (c.userData && c.userData.id === 'entryDoor_bargaining') {
-                c.userData.prompt = 'Salir (Interactuar)';
+                c.userData.prompt = 'Dejar de buscar respuestas (Interactuar)';
             }
         });
 
         setTimeout(() => {
-            uiPromptCallback('El tiempo vuelve a su curso natural.');
+            uiPromptCallback('Buscas otra salida. El reloj sigue avanzando');
             this.audio?.playClickSound(); 
         }, 1500);
     }
@@ -504,7 +533,6 @@ export class BargainingRoom {
         const dt = Math.min(0.05, time - this.lastTime);
         this.lastTime = time;
 
-        // 1. Efecto Aplastamiento
         let targetW = this.baseW;
         let targetH = this.baseH;
 
@@ -517,15 +545,15 @@ export class BargainingRoom {
         this.currentH += (targetH - this.currentH) * dt * 2.0;
         this.applyRoomSize(this.currentW, this.currentH);
 
-        // 2. Luz de ambiente
         if (this.state === 'LETTING_GO') {
-            this.ambient.intensity = 0.4 + Math.sin(time * 3) * 0.1;
+            this.ambient.intensity = 0.2 + Math.sin(time * 3) * 0.1;
+            // Latido en la mesa
+            this.tableMat.emissiveIntensity = 0.4 + Math.sin(time * 4) * 0.2; 
         } else if (this.state === 'RESOLVED') {
-            this.ambient.intensity += (0.8 - this.ambient.intensity) * dt * 2.0;
+            this.ambient.intensity += (0.6 - this.ambient.intensity) * dt * 2.0;
             this.ambient.color.lerp(new THREE.Color(0xffe6c2), dt); 
         }
 
-        // 3. Papeles Flotantes Proporcionales
         const dummy = new THREE.Object3D();
         const scaleX = this.currentW / this.baseW;
 
@@ -548,11 +576,11 @@ export class BargainingRoom {
             
             dummy.position.set(currentX, p.currentY, p.z);
             dummy.updateMatrix();
-            this.papers.setMatrixAt(i, dummy.matrix);
+            this.paperGroups[p.groupIdx].setMatrixAt(p.instanceIdx, dummy.matrix);
         }
-        this.papers.instanceMatrix.needsUpdate = true;
+        
+        this.paperGroups.forEach(g => g.instanceMatrix.needsUpdate = true);
 
-        // 4. El Reloj Loco
         if (this.clockRunning) {
             this.clockTime += this.state === 'RESOLVED' ? dt : (-dt * 8.0);
             const chaos = this.state !== 'RESOLVED' ? Math.sin(time * 20) * 0.5 : 0;

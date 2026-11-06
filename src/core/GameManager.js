@@ -11,7 +11,7 @@ export class GameManager {
         this.completedRooms = 0;
         this.acceptanceAdded = false;
 
-        // Sorteamos si el viaje durará 4 o 5 habitaciones en total
+        // Define si el viaje dura 4 o 5 habitaciones en total
         this.targetRoomCount = Math.random() < 0.5 ? 4 : 5;
 
         this.shuffleArray(this.availableRooms);
@@ -25,7 +25,7 @@ export class GameManager {
     }
 
     getNextRoom() {
-        // ¿Cuándo metemos la Aceptación en la bolsa?
+        // Define cuando podemos llegar a la aceptación
         // Si el viaje es de 4 salas, la metemos luego de 2 completadas (quedan 2 en la bolsa)
         // Si el viaje es de 5 salas, la metemos luego de 3 completadas (quedan 2 en la bolsa)
         const threshold = this.targetRoomCount === 4 ? 2 : 3;

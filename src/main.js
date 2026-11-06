@@ -12,6 +12,7 @@ class App {
         this.clock = new THREE.Clock();
         this.gameManager = new GameManager();
         this.currentRoom = null;
+        AngerRoom.preloadFonts();
         this.initScene();
         this.initCore();
         this.buildWorld();
@@ -221,7 +222,8 @@ class App {
 
         const roomFactories = {
             Denial: () => new DenialRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState),
-            Anger: () => new AngerRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState, this.camera)
+          Anger: () => new AngerRoom(this.scene, this.corridor.doorFactory, this.corridor.currentState,
+                           this.camera, this.audioManager, (t) => this.showPrompt(t))
         };
         const createRoom = roomFactories[roomName];
         if (!createRoom) {
@@ -256,7 +258,7 @@ class App {
         this.camera.updateMatrixWorld(true);
         if (this.controls.velocity) this.controls.velocity.set(0,0,0);
         
-        this.showPrompt(`Has entrado en: ${roomName}`);
+        
         
         setTimeout(() => {
             this.fadeInAndWalk();
@@ -281,13 +283,16 @@ class App {
     }
 
     showPrompt(text) {
-        this.uiPrompt.innerText = text;
-        clearTimeout(this.promptTimeout);
-        this.promptTimeout = setTimeout(() => { this.uiPrompt.innerText = ''; }, 4000);
-    }
+    this.uiPrompt.innerText = text;
+    this.promptLockUntil = performance.now() + 3000; // el hover no lo pisa durante 3 s
+    clearTimeout(this.promptTimeout);
+    this.promptTimeout = setTimeout(() => { this.uiPrompt.innerText = ''; }, 4000);
+}
+
 
     checkRaycastHover() {
         if (!this.controls.isLocked) return;
+        if (performance.now() < this.promptLockUntil) return;
         const obj = this.getInteractionTarget();
         if (obj && obj.userData && obj.userData.prompt) {
             this.uiPrompt.innerText = obj.userData.prompt;
@@ -320,7 +325,9 @@ class App {
                 // COLISIÓN DE LAS HABITACIONES
                 // Verificamos de forma segura en qué sala estamos
                 const isDenial = (this.currentRoom instanceof DenialRoom);
-                const limitX = isDenial ? 1.45 : 0.8;
+                const limitX = typeof this.currentRoom.getXLimit === 'function'
+    ? this.currentRoom.getXLimit()
+    : (isDenial ? 1.45 : 0.8);
                 yaw.position.x = Math.max(1000 - limitX, Math.min(1000 + limitX, yaw.position.x));
                 
                 // Límite Z dinámico (por si la sala de Ira se estira)

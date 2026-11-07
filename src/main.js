@@ -6,6 +6,7 @@ import { Corridor } from "./world/Corridor.js";
 import { DenialRoom } from "./world/DenialRoom.js";
 import { AngerRoom } from "./world/AngerRoom.js";
 import { BargainingRoom } from "./world/BargainingRoom.js";
+import { DepressionRoom } from "./world/DepressionRoom.js";
 
 class App {
   constructor() {
@@ -280,6 +281,15 @@ class App {
         ),
       Bargaining: () =>
         new BargainingRoom(
+          this.scene,
+          this.corridor.doorFactory,
+          this.corridor.currentState,
+          this.camera,
+          this.audioManager,
+          (t) => this.showPrompt(t),
+        ),
+      Depression: () =>
+        new DepressionRoom(
           this.scene,
           this.corridor.doorFactory,
           this.corridor.currentState,

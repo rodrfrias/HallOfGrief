@@ -300,7 +300,7 @@ export class BargainingRoom {
         };
 
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.015, 16, 32), this.glowMat);
-        ring.rotation.x = Math.PI / 2;
+        ring.rotation.x = - Math.PI / 2;
         createObj(ring, "Anillo", -1.0, 0.05, this.doorZ - 3);
 
         const keyGroup = new THREE.Group();
@@ -310,7 +310,7 @@ export class BargainingRoom {
         const keyTeeth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.01), this.glowMat);
         keyTeeth.position.set(0.02, -0.05, 0);
         keyGroup.add(keyBase, keyHead, keyTeeth);
-        keyGroup.rotation.z = Math.PI / 2;
+        keyGroup.rotation.set(-Math.PI / 2, Math.PI / 4, 0); // Acostada (-90° en X) y cruzada (45° en Y)
         createObj(keyGroup, "Llave", 1.2, 1.05, this.doorZ - 4.5); 
 
         const shelf1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.3), woodMat);
@@ -421,6 +421,11 @@ export class BargainingRoom {
                 tempMsg('La habitación rechaza tu oferta.');
                 this.audio?.playSoft(200); 
                 
+                // Apaga el brillo del objeto para indicar que fue rechazado
+                this.heldObject.traverse(child => {
+                    if (child.isMesh && child.material) child.material.emissiveIntensity = 0;
+                });
+                
                 this.roomGroup.add(this.heldObject);
                 this.heldObject.position.copy(this.heldObject.userData.originalPos);
                 this.heldObject.rotation.copy(this.heldObject.userData.originalRot);
@@ -429,7 +434,7 @@ export class BargainingRoom {
                 this.failedAttempts++;
                 this.checkStateTransition();
             } else {
-                tempMsg('Esta bloqueda. Todavía intentás encontrar otra salida');
+                tempMsg('Esta bloqueada. Todavía intentás encontrar otra salida');
             }
             return;
         }
@@ -459,8 +464,18 @@ export class BargainingRoom {
             if (this.heldObject) {
                 this.roomGroup.add(this.heldObject);
                 const slotX = -0.45 + (this.objectsPlaced * 0.3);
-                this.heldObject.position.set(slotX, 0.95, this.doorZ - 6.0);
-                this.heldObject.rotation.set(Math.PI/2, 0, 0); 
+                
+                // Ajustamos un poco la altura (Y=0.935) para que no floten ni se hundan
+                this.heldObject.position.set(slotX, 0.935, this.doorZ - 6.0);
+                
+                // Rescata la rotación original de cada objeto
+                this.heldObject.rotation.copy(this.heldObject.userData.originalRot);
+                
+                // Aplana la carta para que quede bien sobre la mesa
+                if (this.heldObject.userData.prompt === 'Carta') {
+                    this.heldObject.rotation.x = -Math.PI / 2;
+                }
+
                 this.heldObject.userData.placed = true; 
                 
                 this.heldObject.traverse(child => {

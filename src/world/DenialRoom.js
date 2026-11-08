@@ -127,8 +127,7 @@ export class DenialRoom {
 
     const doorGroup = this.doorFactory.getClone(true, this.initialState);
     doorGroup.position.set(doorX, 0, doorZ);
-    // IMPORTANTE: Rotamos 180 grados. Ahora la Caja Negra se incrusta en el pasillo invisible,
-    // permitiendo que la puerta abra libremente hacia adentro del cuarto.
+
     doorGroup.rotation.y = Math.PI;
 
     doorGroup.traverse((c) => {
@@ -411,7 +410,7 @@ export class DenialRoom {
     this.clockHands = clock.hands;
     const clockData = {
       id: "clock",
-      prompt: "Observar reloj detenido (Aceptar anomalía)",
+      prompt: "Observar reloj detenido",
       accepted: false,
     };
     clock.parts.forEach((p) => {
@@ -426,7 +425,7 @@ export class DenialRoom {
     this.frame.rotation.set(0, Math.PI / 2, FRAME_TILT);
     const frameData = {
       id: "frame",
-      prompt: "Inspeccionar cuadro torcido (Aceptar anomalía)",
+      prompt: "Inspeccionar cuadro torcido",
       accepted: false,
     };
     painting.parts.forEach((p) => {
@@ -1308,7 +1307,7 @@ export class DenialRoom {
           const idx = this.interactables.indexOf(st.group);
           if (idx >= 0) this.interactables.splice(idx, 1);
           say(
-            "Colocas las flores en el jarrón. Ahora sí, todo está en su lugar.",
+            "Colocas las flores en el jarrón.",
           );
         });
       } else {
@@ -1700,11 +1699,11 @@ export class DenialRoom {
     if (object.userData.id === "entryDoor") {
       if (!this.isDoorUnlocked) {
         uiPromptCallback(
-          "La puerta está trabada. Sientes que estás ignorando detalles en el entorno...",
+          "Esta bloqueada. Preferís creer que nada cambió.",
         );
       } else {
         uiPromptCallback(
-          "Aceptas la realidad. La puerta de Negación se ha abierto.",
+          "Dejar de mirar hacia otro lado (Interactuar)",
         );
       }
     }

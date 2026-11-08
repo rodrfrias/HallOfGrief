@@ -478,6 +478,7 @@ class App {
 
   unloadRoom(roomInstance) {
     if (!roomInstance || !roomInstance.roomGroup) return;
+    if (typeof roomInstance.dispose === "function") roomInstance.dispose();
     roomInstance.roomGroup.traverse((object) => {
       if (object.geometry) object.geometry.dispose();
       if (!object.material) return;

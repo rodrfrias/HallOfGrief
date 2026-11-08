@@ -146,4 +146,79 @@ export class AudioManager {
     o.start(now);
     o.stop(now + 0.04);
   }
+
+    // --- DEPRESSION ROOM ---
+  startRain() {
+    if (!this.ctx || this.rainNode) return;
+    const len = this.ctx.sampleRate * 2;
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 3200;
+    bp.Q.value = 0.4;
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.05, now + 3);
+    src.connect(bp); bp.connect(gain); gain.connect(this.ctx.destination);
+    src.start();
+    this.rainNode = { src, gain };
+  }
+
+  stopRain() {
+    if (!this.rainNode) return;
+    const { src, gain } = this.rainNode;
+    const now = this.ctx.currentTime;
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+    src.stop(now + 1.6);
+    this.rainNode = null;
+  }
+
+  playHeavyTick(level = 0.3) {
+  if (!this.ctx) return;
+  const now = this.ctx.currentTime;
+  const master = this.ctx.createGain();
+  master.gain.value = level;
+  master.connect(this.ctx.destination);
+
+  // Cuerpo grave: el triángulo tiene armónicos, así se oye en parlantes chicos
+  const o = this.ctx.createOscillator();
+  const g = this.ctx.createGain();
+  o.type = "triangle";
+  o.frequency.setValueAtTime(160, now);
+  o.frequency.exponentialRampToValueAtTime(55, now + 0.3);
+  g.gain.setValueAtTime(1, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+  o.connect(g); g.connect(master);
+  o.start(now); o.stop(now + 0.4);
+
+  // Golpe seco: ruido corto filtrado
+  const len = Math.floor(this.ctx.sampleRate * 0.1);
+  const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const src = this.ctx.createBufferSource();
+  src.buffer = buf;
+  const lp = this.ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 900;
+  src.connect(lp); lp.connect(master);
+  src.start(now);
+
+  // Clic metálico: le da el "tic" al "tum"
+  const c = this.ctx.createOscillator();
+  const cg = this.ctx.createGain();
+  c.type = "square";
+  c.frequency.value = 420;
+  cg.gain.setValueAtTime(0.25, now);
+  cg.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+  c.connect(cg); cg.connect(master);
+  c.start(now); c.stop(now + 0.06);
+}
 }

@@ -7,6 +7,8 @@ import { DenialRoom } from "./world/DenialRoom.js";
 import { AngerRoom } from "./world/AngerRoom.js";
 import { BargainingRoom } from "./world/BargainingRoom.js";
 import { DepressionRoom } from "./world/DepressionRoom.js";
+import { AcceptanceRoom } from "./world/AcceptanceRoom.js";
+import { showEndScreen } from "./core/EndScreen.js";
 
 class App {
   constructor() {
@@ -113,6 +115,10 @@ class App {
           obj.userData.id.startsWith("entryDoor") &&
           this.currentRoom.isDoorUnlocked
         ) {
+          if (!this.currentRoom.cleared) {
+            this.currentRoom.cleared = true;
+            this.gameManager.markRoomCompleted(this.currentRoomName);
+          }
           this.isTransitioning = true;
           this.animateExitAndLoad(obj.parent);
           return;
@@ -121,7 +127,7 @@ class App {
         //ACA
         if (this.currentRoom.isDoorUnlocked && !this.currentRoom.cleared) {
           this.currentRoom.cleared = true;
-          this.gameManager.markRoomCompleted();
+          this.gameManager.markRoomCompleted(this.currentRoomName);
         }
       }
     });
@@ -204,6 +210,11 @@ class App {
       }
     };
     requestAnimationFrame(animate);
+  }
+
+  finishExperience() {
+    this.controls.unlock();
+    showEndScreen();
   }
 
   fadeToBlack(callback) {
@@ -297,6 +308,20 @@ class App {
           this.audioManager,
           (t) => this.showPrompt(t),
         ),
+      Acceptance: () =>
+        new AcceptanceRoom(
+          this.scene,
+          this.corridor.doorFactory,
+          this.corridor.currentState,
+          this.camera,
+          this.audioManager,
+          (t) => this.showPrompt(t),
+          {
+            memories: [...this.gameManager.memories],
+            setControlsLocked: (locked) => (locked ? this.controls.lock() : this.controls.unlock()),
+            onFinish: () => this.finishExperience(),
+          },
+        ),
     };
     const createRoom = roomFactories[roomName];
     if (!createRoom) {
@@ -320,6 +345,7 @@ class App {
     }
 
     this.currentRoom = createRoom();
+    this.currentRoomName = roomName;
 
     this.currentRoom.roomGroup.position.set(1000, 0, 0);
 
@@ -478,6 +504,7 @@ class App {
 
   unloadRoom(roomInstance) {
     if (!roomInstance || !roomInstance.roomGroup) return;
+    // Cada sala restaura lo que tocó (far de la cámara, niebla, audio, texturas)
     if (typeof roomInstance.dispose === "function") roomInstance.dispose();
     roomInstance.roomGroup.traverse((object) => {
       if (object.geometry) object.geometry.dispose();

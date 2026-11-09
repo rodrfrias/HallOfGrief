@@ -1,17 +1,28 @@
+// Para probar de a una sola sala (por ejemplo ["Depression"]).
+// En null se juega el recorrido completo.
+const DEBUG_ONLY_ROOMS = null;
+
+// Objeto que cada sala deja en el memorial de la sala de Aceptación
+const MEMORY_ITEMS = {
+  Denial: "vase", // el florero con flores
+  Anger: "photo", // el portarretratos cálido
+  Bargaining: "key", // la llave
+  Depression: "lantern", // el farol chico
+};
+
 export class GameManager {
   constructor() {
-    // Todas las salas menos Aceptación
-    this.availableRooms = [
-      // 'Denial',
-      // 'Anger',
-      "Bargaining",
-      // 'Depression'
-    ];
+    // Todas las salas menos Aceptación (esa llega siempre al final del recorrido)
+    this.availableRooms = DEBUG_ONLY_ROOMS
+      ? [...DEBUG_ONLY_ROOMS]
+      : ["Denial", "Anger", "Bargaining", "Depression"];
 
     this.completedRooms = 0;
-    this.acceptanceAdded = false;
+    this.memories = []; // objetos del recorrido, en el orden en que se completaron las salas
 
-    // Define si el viaje dura 4 o 5 habitaciones en total
+    // Largo total del viaje, contando la Aceptación:
+    // 4 salas -> 3 etapas y la Aceptación (una etapa queda sin visitar)
+    // 5 salas -> las 4 etapas y la Aceptación
     this.targetRoomCount = Math.random() < 0.5 ? 4 : 5;
 
     this.shuffleArray(this.availableRooms);
@@ -25,28 +36,24 @@ export class GameManager {
   }
 
   getNextRoom() {
-    // Define cuando podemos llegar a la aceptación
-    // Si el viaje es de 4 salas, la metemos luego de 2 completadas (quedan 2 en la bolsa)
-    // Si el viaje es de 5 salas, la metemos luego de 3 completadas (quedan 2 en la bolsa)
-    const threshold = this.targetRoomCount === 4 ? 2 : 3;
-
-    if (this.completedRooms >= threshold && !this.acceptanceAdded) {
-      this.availableRooms.push("Acceptance");
-      this.shuffleArray(this.availableRooms);
-      this.acceptanceAdded = true;
+    // Siempre se recorren al menos 3 salas. Después llega la Aceptación, como 4ta o 5ta
+    // sala, y es el final del recorrido (no se vuelve a otra etapa).
+    if (
+      this.completedRooms >= this.targetRoomCount - 1 ||
+      this.availableRooms.length === 0
+    ) {
+      return "Acceptance";
     }
-
-    if (this.availableRooms.length === 0) {
-      return null;
-    }
-
     return this.availableRooms.pop();
   }
 
-  markRoomCompleted() {
+  // Se llama una sola vez por sala, con su nombre, cuando el usuario la completa
+  markRoomCompleted(roomName) {
+    const item = MEMORY_ITEMS[roomName];
+    if (item && !this.memories.includes(item)) this.memories.push(item);
     this.completedRooms++;
-    // Devuelve true solo si terminamos el viaje completo (llegamos al final del juego)
-    return this.completedRooms >= this.targetRoomCount;
+    // Devuelve true cuando ya se recorrieron todas las salas previas a la Aceptación
+    return this.completedRooms >= this.targetRoomCount - 1;
   }
 
   // Calcula cómo se debe ver el pasillo (0 a 3) dependiendo de cuántas salas completamos

@@ -221,4 +221,173 @@ export class AudioManager {
   c.connect(cg); cg.connect(master);
   c.start(now); c.stop(now + 0.06);
 }
+
+// ============================================================
+  // ACEPTACIÓN
+  // ============================================================
+
+  // Viento suave del jardín + bus donde se acumula el acorde del memorial
+  startGarden() {
+    if (!this.ctx || this.garden) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(ctx.destination);
+
+    const len = ctx.sampleRate * 3;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const wind = ctx.createBufferSource();
+    wind.buffer = buf;
+    wind.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 500;
+    bp.Q.value = 0.6;
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 0.12;
+    lfoGain.gain.value = 220;
+    lfo.connect(lfoGain);
+    lfoGain.connect(bp.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.05, now + 3);
+    wind.connect(bp);
+    bp.connect(g);
+    g.connect(bus);
+    wind.start();
+    lfo.start();
+    this.garden = { bus, nodes: [wind, lfo] };
+  }
+
+  // Cada objeto que se deja en el memorial suma una nota consonante, con ataque lento
+  addHarmonyVoice(freq) {
+    if (!this.ctx || !this.garden) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 1400;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.03, now + 3);
+    lp.connect(g);
+    g.connect(this.garden.bus);
+    [1, 1.003].forEach((k) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = freq * k;
+      o.connect(lp);
+      o.start();
+      this.garden.nodes.push(o);
+    });
+  }
+
+  // Campana suave (brote, semilla, puerta)
+  playBell(freq = 880) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const master = this.ctx.createGain();
+    master.gain.setValueAtTime(0.08, now);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
+    master.connect(this.ctx.destination);
+    [[1, "sine"], [2.76, "triangle"]].forEach(([k, type]) => {
+      const o = this.ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = freq * k;
+      o.connect(master);
+      o.start(now);
+      o.stop(now + 2.3);
+    });
+  }
+
+  // Tierra: golpe sordo + ruido grave
+  playEarth() {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0.3;
+    master.connect(ctx.destination);
+    const len = Math.floor(ctx.sampleRate * 0.3);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 500;
+    src.connect(lp);
+    lp.connect(master);
+    src.start(now);
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(110, now);
+    o.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+    g.gain.setValueAtTime(0.8, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+    o.connect(g);
+    g.connect(master);
+    o.start(now);
+    o.stop(now + 0.3);
+  }
+
+  // Agua que cae: ruido filtrado con burbujeo
+  playWater() {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const len = Math.floor(ctx.sampleRate * 2.4);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800;
+    bp.Q.value = 0.8;
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 9;
+    lfoGain.gain.value = 0.03;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.09, now + 0.4);
+    g.gain.setValueAtTime(0.09, now + 1.7);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 2.4);
+    lfo.connect(lfoGain);
+    lfoGain.connect(g.gain);
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(ctx.destination);
+    src.start(now);
+    lfo.start(now);
+    lfo.stop(now + 2.4);
+  }
+
+  // Al salir al exterior todo se va apagando hasta el silencio
+  fadeOutGarden(seconds = 4) {
+    if (!this.ctx || !this.garden) return;
+    const { bus, nodes } = this.garden;
+    const now = this.ctx.currentTime;
+    bus.gain.setValueAtTime(bus.gain.value, now);
+    bus.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
+    nodes.forEach((n) => { try { n.stop(now + seconds + 0.1); } catch (e) {} });
+    this.garden = null;
+  }
+
+  stopGarden() {
+    if (!this.ctx || !this.garden) return;
+    this.garden.nodes.forEach((n) => { try { n.stop(); } catch (e) {} });
+    this.garden.bus.disconnect();
+    this.garden = null;
+  }
+
+
 }

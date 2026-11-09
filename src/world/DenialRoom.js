@@ -1770,7 +1770,6 @@ export class DenialRoom {
   checkProgress(uiPromptCallback) {
     if (this.anomaliesAccepted >= this.totalAnomalies) {
       this.isDoorUnlocked = true;
-      this.entryDoorGroup.userData.setState(2);
       this.entryDoor.userData.prompt = "Salir de la Negación (Interactuar)";
 
       setTimeout(() => {

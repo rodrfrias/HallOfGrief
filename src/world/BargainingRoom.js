@@ -644,7 +644,6 @@ export class BargainingRoom {
 
     this.tableMat.emissiveIntensity = 0;
 
-    this.entryDoorGroup.userData.setState(2);
     this.entryDoorGroup.traverse((c) => {
       if (c.userData && c.userData.id === "entryDoor_bargaining") {
         c.userData.prompt = "Dejar de buscar respuestas (Interactuar)";

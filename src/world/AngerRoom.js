@@ -1171,7 +1171,6 @@ export class AngerRoom {
       (uiPromptCallback || this.say)("La ira se disipa. Escuchás un reloj...");
     }, 1800);
 
-    this.entryDoorGroup.userData.setState(2);
     this.entryDoorGroup.traverse((c) => {
       if (c.userData && c.userData.id === "entryDoor_anger") {
         c.userData.prompt = "Aceptar la ira (Interactuar)";

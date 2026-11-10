@@ -39,7 +39,7 @@ export function showEndScreen({ lines = END_LINES, resources = END_CONFIG.resour
     line.style.cssText = "font-size:1.35rem;font-style:italic;margin-bottom:1.6rem;color:#6a4a2a;";
 
     const note = document.createElement("p");
-    note.textContent = "Este recorrido es una simplificación: en la vida real las etapas del duelo no son lineales, y cada persona puede ir y volver.";
+    note.textContent = "Este recorrido es una simplificación: en la vida real las etapas del duelo no son lineales, no son pasos ordenados y cada persona puede ir y volver entre etapas.";
     note.style.cssText = "font-size:0.9rem;margin-bottom:1.4rem;color:#7a6a58;";
 
     box.append(title, line, note);

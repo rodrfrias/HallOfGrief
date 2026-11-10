@@ -1184,17 +1184,7 @@ export class Corridor {
       });
     };
 
-    //     this.segments = [segment];
-    //     segment.position.z = 0;
-    //     this.scene.add(segment);
-    //    for (let i = 1; i < 7; i++) {
-    //         const clone = segment.clone(true);
-    //         clone.frustumCulled = false;
-    //         clone.position.z = -length * i;
-    //         this.segments.push(clone);
-    //         this.scene.add(clone);
-    //         registerClone(clone);
-    //     }
+  
 
     this.segments = [];
     const halfCount = 3; // 3 hacia atrás, el centro (0), y 3 hacia adelante = 7 segmentos
@@ -1209,7 +1199,7 @@ export class Corridor {
         registerClone(currentSegment);
       }
 
-      currentSegment.frustumCulled = false;
+      currentSegment.frustumCulled = true;
       currentSegment.position.z = -length * i;
 
       if (i !== 0) this.addRandomDoor(currentSegment);
@@ -1259,11 +1249,7 @@ export class Corridor {
         item.spotLight.intensity = item.baseIntensitySpot * intensityFactor;
         item.tubeMesh.material.color.set(lightColor);
       });
-      // if (scene.fog) {
-      //     scene.fog.density = stateConfig.fogDensity;
-      //     scene.fog.color.setHex(nextState === 1 ? 0x9eafb2 : 0xf0d7b0);
-      // }
-      // scene.background.setHex(nextState === 1 ? 0x9eafb2 : 0xf0d7b0);
+
       if (scene.fog) {
         scene.fog.near = stateConfig.fogNear;
         scene.fog.far = stateConfig.fogFar;
@@ -1318,27 +1304,7 @@ export class Corridor {
       segmentGroup.add(doorRight);
     }
   }
-  // addRandomDoor(segmentGroup) {
-  //         this.removeDoorFromSegment(segmentGroup);
 
-  //         // 35% de chance de spawnear puerta en la pared IZQUIERDA
-  //         if (Math.random() <= 0.35) {
-  //             const doorLeft = this.doorFactory.getClone(true);
-  //             doorLeft.traverse((child) => {
-  //                 if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
-  //             });
-  //             segmentGroup.add(doorLeft);
-  //         }
-
-  //         // 35% de chance de spawnear puerta en la pared DERECHA
-  //         if (Math.random() <= 0.35) {
-  //             const doorRight = this.doorFactory.getClone(false);
-  //             doorRight.traverse((child) => {
-  //                 if (child.userData && child.userData.isCorridorDoor) this.interactables.push(child);
-  //             });
-  //             segmentGroup.add(doorRight);
-  //         }
-  //     }
 
   removeDoorFromSegment(segmentGroup) {
     // Encontramos TODAS las puertas del segmento (ahora puede haber hasta 2)

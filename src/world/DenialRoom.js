@@ -71,14 +71,22 @@ const roundedBox = (w, h, d, r, seg = 6) => {
 };
 
 export class DenialRoom {
-  constructor(scene, doorFactory, initialState = 0) {
+  constructor(scene, doorFactory, initialState = 0, camera, audio, say) {
     this.scene = scene;
     this.doorFactory = doorFactory;
     this.initialState = initialState;
+    this.camera = camera;
+    this.audio = audio || null;
+    this.say = say || (() => {});
     this.interactables = [];
+    this.textures = [];
     this.anomaliesAccepted = 0;
     this.totalAnomalies = 2;
     this.isDoorUnlocked = false;
+    this._disposed = false;
+    this._unlockTimeout = null;
+    this._clockRaf = null;
+    this._drawerRaf = null;
 
     this.roomGroup = new THREE.Group();
     this.scene.add(this.roomGroup);
@@ -90,13 +98,50 @@ export class DenialRoom {
   _hookRenderer() {
     const scene = this.scene;
     const prev = scene.onBeforeRender;
-    scene.onBeforeRender = (renderer, sc, camera, ...rest) => {
+    this._previousOnBeforeRender = prev;
+    this._rendererHook = (renderer, sc, camera, ...rest) => {
       if (prev) prev.call(scene, renderer, sc, camera, ...rest);
+      if (this._disposed) return;
       this._renderHookAt = performance.now();
       if (!this._dragCleanup && this.flowers)
         this.enableDragging(camera, renderer.domElement);
       if (this._dragTick) this._dragTick(camera);
     };
+    scene.onBeforeRender = this._rendererHook;
+  }
+
+  _createTexture(canvas, srgb = true) {
+    const texture = texOf(canvas, srgb);
+    this.textures.push(texture);
+    return texture;
+  }
+
+  getZLimit() {
+    return -14.7;
+  }
+
+  getXLimit() {
+    return 1.45;
+  }
+
+  dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
+    this.disableDragging();
+    if (this.flowers?.anim) this.flowers.anim.cancelled = true;
+    if (this._unlockTimeout !== null) {
+      clearTimeout(this._unlockTimeout);
+      this._unlockTimeout = null;
+    }
+    if (this._clockRaf !== null) cancelAnimationFrame(this._clockRaf);
+    if (this._drawerRaf !== null) cancelAnimationFrame(this._drawerRaf);
+    this._clockRaf = null;
+    this._drawerRaf = null;
+    if (this.scene.onBeforeRender === this._rendererHook) {
+      this.scene.onBeforeRender = this._previousOnBeforeRender || null;
+    }
+    this.textures.forEach((texture) => texture.dispose());
+    this.textures.length = 0;
   }
 
   createFloorStainTexture() {
@@ -118,6 +163,7 @@ export class DenialRoom {
     }
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    this.textures.push(texture);
     return texture;
   }
 
@@ -612,7 +658,7 @@ export class DenialRoom {
       c.stroke();
       c.restore();
     }
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createClockGlassTexture() {
@@ -660,7 +706,7 @@ export class DenialRoom {
     c.beginPath();
     c.arc(c0, c0, c0 * 0.97, Math.PI * 0.95, Math.PI * 1.45);
     c.stroke();
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createDresser() {
@@ -913,6 +959,7 @@ export class DenialRoom {
     const t = new THREE.CanvasTexture(cv);
     t.mapping = THREE.EquirectangularReflectionMapping;
     t.colorSpace = THREE.SRGBColorSpace;
+    this.textures.push(t);
     return t;
   }
 
@@ -966,7 +1013,7 @@ export class DenialRoom {
           : `rgba(255,255,255,${rnd(0.03, 0.08)})`;
       c.fillRect(rnd(0, w), rnd(0, h), 1.5, 1.5);
     }
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createDiscTexture() {
@@ -987,7 +1034,7 @@ export class DenialRoom {
       c.arc(rnd(0, w), rnd(0, h), rnd(0.8, 2.4), 0, Math.PI * 2);
       c.fill();
     }
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createBouquet() {
@@ -1471,7 +1518,7 @@ export class DenialRoom {
     vg.addColorStop(1, "rgba(0,0,0,0.35)");
     c.fillStyle = vg;
     c.fillRect(0, 0, w, h);
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createGlassSheenTexture() {
@@ -1486,7 +1533,7 @@ export class DenialRoom {
     g.addColorStop(0.8, "rgba(0,0,0,0)");
     c.fillStyle = g;
     c.fillRect(0, 0, 128, 256);
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createWoodTexture(base) {
@@ -1600,7 +1647,7 @@ export class DenialRoom {
       c.fillStyle = `rgba(0,0,0,${rnd(0.01, 0.035)})`;
       c.fillRect(rnd(0, w), 0, rnd(1, 3), h);
     }
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createRoomFloorTexture() {
@@ -1679,7 +1726,7 @@ export class DenialRoom {
           : `rgba(255,255,255,${rnd(0.01, 0.05)})`;
       c.fillRect(rnd(0, w), rnd(0, h), 2, 2);
     }
-    return texOf(cv);
+    return this._createTexture(cv);
   }
 
   createBlobTexture() {
@@ -1691,10 +1738,11 @@ export class DenialRoom {
     g.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = g;
     c.fillRect(0, 0, 128, 128);
-    return texOf(cv, false);
+    return this._createTexture(cv, false);
   }
 
   interact(object, uiPromptCallback) {
+    uiPromptCallback = uiPromptCallback || this.say;
     this._ui = uiPromptCallback;
     if (object.userData.id === "entryDoor") {
       if (!this.isDoorUnlocked) {
@@ -1734,7 +1782,7 @@ export class DenialRoom {
   }
 
   startClock() {
-    if (this.clockRunning) return;
+    if (this.clockRunning || this._disposed) return;
     this.clockRunning = true;
     const { hourHand, minuteHand, secondHand } = this.clockHands;
     const { h, m, s } = CLOCK_STOPPED;
@@ -1749,9 +1797,9 @@ export class DenialRoom {
       hourHand.rotation.z = -((total / 43200) % 1) * TAU;
       minuteHand.rotation.z = -((total % 3600) / 3600) * TAU;
       secondHand.rotation.z = -((total % 60) / 60) * TAU;
-      requestAnimationFrame(tick);
+      if (!this._disposed) this._clockRaf = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    this._clockRaf = requestAnimationFrame(tick);
   }
 
   closeDrawer(duration = 420) {
@@ -1759,12 +1807,14 @@ export class DenialRoom {
     const from = drawer.position.x;
     const t0 = performance.now();
     const step = (now) => {
+      if (this._disposed) return;
       const k = Math.min(1, Math.max(0, (now - t0) / duration));
       const eased = 1 - Math.pow(1 - k, 3);
       drawer.position.x = from * (1 - eased);
-      if (k < 1) requestAnimationFrame(step);
+      if (k < 1) this._drawerRaf = requestAnimationFrame(step);
+      else this._drawerRaf = null;
     };
-    requestAnimationFrame(step);
+    this._drawerRaf = requestAnimationFrame(step);
   }
 
   checkProgress(uiPromptCallback) {
@@ -1772,7 +1822,9 @@ export class DenialRoom {
       this.isDoorUnlocked = true;
       this.entryDoor.userData.prompt = "Salir de la Negación (Interactuar)";
 
-      setTimeout(() => {
+      this._unlockTimeout = setTimeout(() => {
+        this._unlockTimeout = null;
+        if (this._disposed) return;
         uiPromptCallback(
           "La puerta de Negación se ha desbloqueado. Es hora de avanzar.",
         );

@@ -17,6 +17,7 @@ class App {
     this.gameManager = new GameManager();
     this.currentRoom = null;
     this.lastDoorPivot = null;
+    this.centerScreen = new THREE.Vector2(0, 0)
     AngerRoom.preloadFonts();
     this.initScene();
     this.initCore();
@@ -134,7 +135,7 @@ class App {
   }
 
   getInteractionTarget() {
-    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    this.raycaster.setFromCamera(this.centerScreen, this.camera);
     if (!this.currentRoom) {
       const corridorIntersects = this.raycaster.intersectObjects(
         this.corridor.interactables,
@@ -280,6 +281,9 @@ class App {
           this.scene,
           this.corridor.doorFactory,
           this.corridor.currentState,
+          this.camera,
+          this.audioManager,
+          (t) => this.showPrompt(t),
         ),
       Anger: () =>
         new AngerRoom(
@@ -507,6 +511,7 @@ class App {
     // Cada sala restaura lo que tocó (far de la cámara, niebla, audio, texturas)
     if (typeof roomInstance.dispose === "function") roomInstance.dispose();
     roomInstance.roomGroup.traverse((object) => {
+      if (object.userData && (object.userData.isCorridorDoor || object.userData.id?.startsWith("entryDoor"))) return;
       if (object.geometry) object.geometry.dispose();
       if (!object.material) return;
       const materials = Array.isArray(object.material)

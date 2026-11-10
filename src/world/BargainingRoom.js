@@ -28,6 +28,9 @@ export class BargainingRoom {
     this.interactables = [];
     this.isDoorUnlocked = false;
 
+    //colores
+    this.ambientColor = new THREE.Color(0xffe6c2);
+
     this.roomGroup = new THREE.Group();
     this.scene.add(this.roomGroup);
 
@@ -680,7 +683,7 @@ export class BargainingRoom {
       this.tableMat.emissiveIntensity = 0.4 + Math.sin(time * 4) * 0.2;
     } else if (this.state === "RESOLVED") {
       this.ambient.intensity += (0.6 - this.ambient.intensity) * dt * 2.0;
-      this.ambient.color.lerp(new THREE.Color(0xffe6c2), dt);
+      this.ambient.color.lerp(this.ambientColor, dt);
     }
 
     const dummy = new THREE.Object3D();

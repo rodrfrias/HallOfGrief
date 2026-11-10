@@ -22,7 +22,7 @@ const CFG = {
   // Dónde están esparcidos los objetos del recorrido (x, z)
   spots: [[-3.2, -13.2], [3.4, -14.6], [-3.6, -22.6], [4.2, -23.4], [-0.2, -26.2]],
   pot: { x: 0, z: -19 },
-  table: { x: -7.0, z: -18.3, len: 3.8 },
+  table: { x: -7.0, z: -18.3, w: 2.7, d: 1.3 }, // w = ancho (eje z), d = profundidad (eje x)
 };
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -115,6 +115,7 @@ export class AcceptanceRoom {
     this.cardTouched = false;
     this.cardText = "";
     this.editorOpen = false;
+    this.handYaw = 0.4;
     this.colliders = [];
     this.sunC0 = new THREE.Color(0xfff0d0);
     this.sunC1 = new THREE.Color(0xffd890);
@@ -528,21 +529,60 @@ export class AcceptanceRoom {
     });
   }
 
-  /* ---------- Memorial: mesa con huecos, tarjeta, reloj y plato para la semilla ---------- */
+  /* ---------- Memorial: un altar con plataforma, objetos que toman forma y velas a los costados ---------- */
+  // Huecos del frente de la mesa, relativos a su centro: [hacia la sala, a lo ancho].
+  // La plataforma de atrás recibe el primer objeto que el usuario elija; el resto se agrupa adelante.
+  frontSlots(count) {
+    const layouts = [[], [[0.3, 0]], [[0.25, -0.62], [0.25, 0.62]], [[0.2, -0.82], [0.3, 0], [0.2, 0.82]]];
+    return layouts[Math.max(0, Math.min(3, count))];
+  }
+
   buildMemorial() {
-    const { x: tx, z: tz, len } = CFG.table;
+    const { x: tx, z: tz, w: W, d: D } = CFG.table;
     const wood = this.std(0x8a5d3b, { roughness: 0.7 });
-    const top = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, len), wood);
-    top.position.set(tx, 0.82, tz);
+    const darkWood = this.std(0x6d4528, { roughness: 0.7 });
+    const TOP = 0.84;
+
+    // Mesa con mantel
+    const top = new THREE.Mesh(new THREE.BoxGeometry(D, 0.06, W), wood);
+    top.position.set(tx, TOP - 0.03, tz);
     this.roomGroup.add(top);
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, 0.08), wood);
-      leg.position.set(tx + sx * 0.38, 0.4, tz + sz * (len / 2 - 0.1));
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, TOP - 0.06, 0.08), wood);
+      leg.position.set(tx + sx * (D / 2 - 0.08), (TOP - 0.06) / 2, tz + sz * (W / 2 - 0.08));
       this.roomGroup.add(leg);
     });
-    for (let i = 0; i < 4; i++) this.colliders.push({ x: tx, z: tz - 1.4 + i * 0.95, r: 0.62 });
+    const cc = canvasOf(256, 64);
+    const cx = cc.getContext("2d");
+    for (let x = 0; x < 256; x++) {
+      const v = 0.9 + 0.07 * Math.sin(x * 0.16) + 0.04 * Math.sin(x * 0.43);
+      cx.fillStyle = `rgb(${Math.round(240 * v)},${Math.round(232 * v)},${Math.round(212 * v)})`;
+      cx.fillRect(x, 0, 1, 64);
+    }
+    const clothTex = this.tex(cc);
+    clothTex.wrapS = THREE.RepeatWrapping;
+    clothTex.repeat.set(4, 1);
+    const cloth = this.std(0xffffff, { map: clothTex, roughness: 1, side: THREE.DoubleSide });
+    const cTop = new THREE.Mesh(new THREE.BoxGeometry(D + 0.08, 0.014, W + 0.08), cloth);
+    cTop.position.set(tx, TOP + 0.007, tz);
+    const dropH = 0.5;
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.08, dropH), cloth);
+    front.position.set(tx + D / 2 + 0.04, TOP - dropH / 2, tz);
+    front.rotation.y = Math.PI / 2;
+    const sideL = new THREE.Mesh(new THREE.PlaneGeometry(D + 0.08, dropH), cloth);
+    sideL.position.set(tx, TOP - dropH / 2, tz - W / 2 - 0.04);
+    const sideR = sideL.clone();
+    sideR.position.z = tz + W / 2 + 0.04;
+    this.roomGroup.add(cTop, front, sideL, sideR);
+    this.memorialY = TOP + 0.014;
+    for (let i = 0; i < 4; i++) this.colliders.push({ x: tx + 0.1, z: tz - 1.0 + i * 0.67, r: 0.75 });
 
-    // Huecos: un anillo tenue marca dónde dejar cada objeto
+    // Plataforma elevada, al fondo y al centro
+    const riser = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 1.0), darkWood);
+    riser.position.set(tx - 0.25, this.memorialY + 0.1, tz);
+    this.roomGroup.add(riser);
+
+    // Huecos: un anillo tenue marca dónde dejar cada objeto. Los del frente giran apenas hacia el centro.
     const rc = canvasOf(128, 128);
     const r = rc.getContext("2d");
     r.strokeStyle = "rgba(217,180,91,0.9)";
@@ -551,55 +591,72 @@ export class AcceptanceRoom {
     r.arc(64, 64, 52, 0, Math.PI * 2);
     r.stroke();
     const ringTex = this.tex(rc);
-    this.memorialY = 0.865;
-    this.memories.forEach((id, i) => {
-      const pos = new THREE.Vector3(tx, this.memorialY, tz + 0.9 - i * 0.6);
+    const defs = [{ x: tx - 0.25, y: this.memorialY + 0.2, z: tz, yaw: Math.PI / 2, size: 0.46 }];
+    this.frontSlots(this.memories.length - 1).forEach(([dx, dz]) => {
+      defs.push({ x: tx + dx, y: this.memorialY, z: tz + dz, yaw: Math.PI / 2 + 0.25 * Math.sign(dz), size: 0.38 });
+    });
+    defs.slice(0, this.memories.length).forEach((d) => {
+      const pos = new THREE.Vector3(d.x, d.y, d.z);
       const ring = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.4, 0.4),
+        new THREE.PlaneGeometry(d.size, d.size),
         new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, opacity: 0.45, depthWrite: false }),
       );
       ring.rotation.x = -Math.PI / 2;
-      ring.position.copy(pos).setY(this.memorialY + 0.002);
+      ring.position.copy(pos).setY(d.y + 0.002);
       const glow = this.glowSprite(0xffe2a0, 0.9, 0);
-      glow.position.copy(pos).setY(this.memorialY + 0.25);
-      const slot = { pos, filled: false, ring, glow, hit: null };
-      slot.hit = this.hitBox(0.5, 0.7, 0.5, pos.x, pos.y + 0.3, pos.z, { id: "memory_slot", prompt: "Interactuar", slot });
+      glow.position.copy(pos).setY(d.y + 0.25);
+      const slot = { pos, yaw: d.yaw, filled: false, ring, glow, hit: null };
+      slot.hit = this.hitBox(0.38, 0.7, 0.38, pos.x, pos.y + 0.3, pos.z, { id: "memory_slot", prompt: "Interactuar", slot });
       this.roomGroup.add(ring, glow, slot.hit);
       this.addHit(slot.hit);
       this.slots.push(slot);
     });
 
-    // Tarjeta en blanco sobre un pequeño atril, en el extremo de la mesa
+    // Velas a los costados: se van encendiendo a medida que el memorial toma forma
+    const brass = this.std(0xc9a24a, { metalness: 0.6, roughness: 0.35 });
+    const wax = this.std(0xf3ead2, { roughness: 0.6 });
+    this.candles = [];
+    [[-0.45, -1.12, 0.3], [-0.45, 1.12, 0.3], [0.05, -1.12, 0.2], [0.05, 1.12, 0.2]].forEach(([dx, dz, h], i) => {
+      const g = new THREE.Group();
+      g.position.set(tx + dx, this.memorialY, tz + dz);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.025, 12), brass);
+      base.position.y = 0.0125;
+      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, h, 12), wax);
+      stick.position.y = 0.025 + h / 2;
+      const flame = this.glowSprite(0xffd890, 0.22, 0);
+      flame.position.y = 0.025 + h + 0.07;
+      g.add(base, stick, flame);
+      this.roomGroup.add(g);
+      this.candles.push({ flame, lit: false, level: 0, phase: i * 1.7 });
+    });
+
+    // Tarjeta en blanco al frente del altar
     const stand = new THREE.Group();
-    stand.position.set(tx, this.memorialY, tz + len / 2 - 0.35);
+    stand.position.set(tx + 0.62, this.memorialY, tz);
     stand.rotation.y = Math.PI / 2;
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.14), wood);
     base.position.y = 0.015;
-    this.cardCanvas = canvasOf(256, 340);
+    this.cardCanvas = canvasOf(512, 680);
     this.cardTex = this.tex(this.cardCanvas);
     this.paintCard("");
-    this.cardMat = new THREE.MeshStandardMaterial({ map: this.cardTex, roughness: 0.9, emissive: 0xffe2a0, emissiveIntensity: 0, emissiveMap: this.cardTex });
+    this.cardMat = new THREE.MeshStandardMaterial({
+      map: this.cardTex, color: 0xd9d1bd, roughness: 0.95, emissive: 0xffe2a0, emissiveIntensity: 0, emissiveMap: this.cardTex,
+    });
     const card = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.32), this.cardMat);
     card.position.set(0, 0.2, 0);
     card.rotation.x = -0.25;
-    const cardHit = this.hitBox(0.4, 0.5, 0.4, 0, 0.25, 0.05, { id: "memory_card", prompt: "Interactuar" });
+    const cardHit = this.hitBox(0.3, 0.42, 0.25, 0, 0.22, 0.04, { id: "memory_card", prompt: "Interactuar" });
     stand.add(base, card, cardHit);
-    this.cardGlow = this.glowSprite(0xffe2a0, 0.8, 0);
-    this.cardGlow.position.set(tx, this.memorialY + 0.3, tz + len / 2 - 0.35);
+    // El brillo queda detrás de la tarjeta para no tapar lo que se escribe
+    this.cardGlow = this.glowSprite(0xffe2a0, 0.6, 0);
+    this.cardGlow.position.set(tx + 0.47, this.memorialY + 0.22, tz);
     this.roomGroup.add(stand, this.cardGlow);
     this.addHit(cardHit);
 
-    // Plato de piedra para la semilla (en el otro extremo)
-    const dishZ = tz - len / 2 + 0.4;
-    const dish = new THREE.Mesh(
-      new THREE.LatheGeometry(profile([[0.001, 0], [0.09, 0], [0.12, 0.03], [0.13, 0.04], [0.11, 0.04], [0.08, 0.015], [0.001, 0.015]]), 20),
-      this.std(0xb9b09a, { side: THREE.DoubleSide }),
-    );
-    dish.position.set(tx, this.memorialY, dishZ);
-    this.roomGroup.add(dish);
-    this.dishPos = new THREE.Vector3(tx, this.memorialY + 0.06, dishZ);
+    // La semilla aparece flotando sobre el memorial cuando está completo
+    this.dishPos = new THREE.Vector3(tx + 0.8, 1.45, tz);
 
-    // Reloj en la pared: hilo conductor. Detenido en las 3:17:41 hasta que algo empieza a crecer.
+    // Reloj en la pared: Detenido en las 3:17:41 hasta que algo empieza a crecer.
     const clock = this.buildClock(0.55);
     clock.group.position.set(-CFG.halfW + 0.05, 2.5, tz);
     clock.group.rotation.y = Math.PI / 2;
@@ -608,32 +665,36 @@ export class AcceptanceRoom {
     this.updateClock(0);
   }
 
+  updateCandleTargets() {
+    const lit = Math.round((this.candles.length * this.placed) / this.items.length);
+    this.candles.forEach((c, i) => { c.lit = i < lit; });
+  }
+
   paintCard(text) {
     const c = this.cardCanvas.getContext("2d");
-    c.fillStyle = "#f3ead4";
-    c.fillRect(0, 0, 256, 340);
+    c.fillStyle = "#efe5cc";
+    c.fillRect(0, 0, 512, 680);
     c.strokeStyle = "rgba(90,70,40,0.22)";
-    c.lineWidth = 1;
-    for (let y = 70; y < 320; y += 28) {
+    c.lineWidth = 2;
+    for (let y = 150; y < 640; y += 56) {
       c.beginPath();
-      c.moveTo(22, y);
-      c.lineTo(234, y);
+      c.moveTo(44, y);
+      c.lineTo(468, y);
       c.stroke();
     }
     if (text) {
-      c.fillStyle = "#3b2f22";
-      c.font = '20px "Special Elite", "Courier New", monospace';
-      const words = text.split(/\s+/);
-      let line = "", y = 64;
-      words.forEach((w) => {
+      c.fillStyle = "#2b2118";
+      c.font = '38px "Special Elite", "Courier New", monospace';
+      let line = "", y = 136;
+      text.split(/\s+/).forEach((w) => {
         const t = line ? line + " " + w : w;
-        if (c.measureText(t).width > 208 && line) {
-          c.fillText(line, 24, y);
+        if (c.measureText(t).width > 424 && line) {
+          c.fillText(line, 44, y);
           line = w;
-          y += 28;
+          y += 56;
         } else line = t;
       });
-      c.fillText(line, 24, y);
+      c.fillText(line, 44, y);
     }
     this.cardTex.needsUpdate = true;
   }
@@ -778,12 +839,17 @@ export class AcceptanceRoom {
       g.add(pic);
       m(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.02), wood), 0, 0.1, -0.06).rotation.x = 0.5;
     } else if (id === "key") {
-      // La llave de la Negociación
+      // La llave de la Negociación: apoyada de costado, en diagonal
       const brass = this.std(0xc9a24a, { metalness: 0.6, roughness: 0.35 });
-      m(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 8, 20), brass), 0, 0.3, 0);
-      m(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 8), brass), 0, 0.12, 0);
-      m(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.025, 0.02), brass), 0.035, 0.03, 0);
-      m(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.02), brass), 0.025, 0.07, 0);
+      const pivot = new THREE.Group();
+      pivot.position.y = 0.02;
+      pivot.rotation.set(-Math.PI / 2, 0, 0.7);
+      const part = (mesh, x, y) => { mesh.position.set(x, y, 0); pivot.add(mesh); };
+      part(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 8, 20), brass), 0, 0.28);
+      part(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 8), brass), 0, 0.11);
+      part(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.025, 0.02), brass), 0.035, 0.03);
+      part(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.02), brass), 0.025, 0.07);
+      g.add(pivot);
     } else {
       // Un farol chico: la luz de la Depresión
       const metal = this.std(0x27324a, { metalness: 0.2, roughness: 0.55 });
@@ -1014,24 +1080,26 @@ export class AcceptanceRoom {
     group.scale.setScalar(1);
     return v;
   }
-  takeInHand(group, scale = 0.85) {
+  takeInHand(group, scale = 0.85, yaw = 0.4) {
+    this.handYaw = yaw;
     group.removeFromParent();
     this.hand.add(group);
     group.position.set(0, -0.06, 0);
-    group.rotation.set(0, 0.4, 0);
+    group.rotation.set(0, yaw, 0);
     group.scale.setScalar(scale);
   }
-  flyTo(group, from, to, dur, arc, done) {
+  flyTo(group, from, to, dur, arc, done, yawTo = null) {
     this.tween(dur, (p) => {
       const e = this.ease(p);
       group.position.lerpVectors(from, to, e);
       group.position.y += arc * Math.sin(Math.PI * e);
+      if (yawTo !== null) group.rotation.y = yawTo * e;
     }, done);
   }
 
   interact(object, uiPromptCallback) {
     const id = object.userData.id;
-    if (id === "lockedDoor_acceptance") uiPromptCallback("Ya no hay vuelta atrás.");
+    if (id === "lockedDoor_acceptance") uiPromptCallback("No hace falta volver atras para recordar.");
     else if (id === "finalDoor_acceptance") this.useExitDoor();
     else if (id === "memory_item") this.pickItem(object.userData.item);
     else if (id === "memory_slot") this.useSlot(object.userData.slot);
@@ -1065,10 +1133,11 @@ export class AcceptanceRoom {
     this.flyTo(item.group, from, slot.pos.clone(), 0.7, 0.25, () => {
       slot.glow.material.opacity = 0.7;
       slot.ring.material.opacity = 0.9;
-    });
+    }, slot.yaw); // queda de frente a la sala
     this.audio?.playSoft?.(659);
     this.audio?.addHarmonyVoice?.(CFG.chord[this.placed % CFG.chord.length]);
     this.placed++;
+    this.updateCandleTargets();
     if (this.placed >= this.items.length) this.tween(1.4, () => {}, () => this.revealSeed()); // pausa corta, en tiempo de juego
   }
 
@@ -1091,7 +1160,7 @@ export class AcceptanceRoom {
     if (this.carrying) { this.audio?.playSoft?.(330); return; }
     this.carrying = { type: "jug" };
     this.removeHit(this.jug.hit);
-    this.takeInHand(this.jug.group, 0.8);
+    this.takeInHand(this.jug.group, 0.8, -0.6); // el pico apunta hacia adelante y a la izquierda
     this.audio?.playSoft?.(440);
   }
 
@@ -1220,8 +1289,8 @@ export class AcceptanceRoom {
         this.cardTouched = true;
         this.audio?.addHarmonyVoice?.(783.99);
       }
-      this.cardMat.emissiveIntensity = 0.35; // la tarjeta se ilumina, haya escrito o no
-      this.cardGlow.material.opacity = 0.6;
+      this.cardMat.emissiveIntensity = 0.05; // un brillo muy suave: que se lea lo escrito
+      this.cardGlow.material.opacity = 0.3;
       this.audio?.playSoft?.(698);
       setTimeout(() => this.extras.setControlsLocked?.(true), 0);
     };
@@ -1304,8 +1373,14 @@ export class AcceptanceRoom {
     });
   }
 
-  updateItems(time) {
+  updateItems(time, dt) {
     const c = this.carrying;
+    this.candles.forEach((cd) => {
+      cd.level += ((cd.lit ? 1 : 0) - cd.level) * (1 - Math.exp(-dt * 2.5));
+      const flick = 0.78 + 0.18 * Math.sin(time * 9 + cd.phase) + 0.04 * Math.sin(time * 23 + cd.phase);
+      cd.flame.material.opacity = cd.level * flick;
+      cd.flame.scale.setScalar(0.22 * (0.85 + 0.15 * flick));
+    });
     // Brillo suave en lo que se puede tomar (más fuerte cuando el jardín "responde")
     this.items.forEach((it, i) => {
       if (!it.placed && it.glow.visible) {
@@ -1319,7 +1394,7 @@ export class AcceptanceRoom {
     if (c) {
       const g = c.type === "item" ? c.item.group : c.type === "seed" ? this.seed.group : this.jug.group;
       g.position.y = -0.06 + Math.sin(time * 2.2) * 0.008;
-      g.rotation.y = 0.4 + Math.sin(time * 0.9) * 0.1;
+      g.rotation.y = this.handYaw + Math.sin(time * 0.9) * 0.1;
     }
     // Textos al apuntar: dependen de lo que lleve
     this.slots.forEach((s) => { s.hit.userData.prompt = c && c.type === "item" && !s.filled ? "Dejar aquí" : "Interactuar"; });
@@ -1353,7 +1428,7 @@ export class AcceptanceRoom {
     this.updateTweens(dt);
     this.updateGrowth(time, dt);
     this.updateLighting(time, dt);
-    this.updateItems(time);
+    this.updateItems(time, dt);
     this.updateClock(time);
     this.updateFinale(pz);
   }

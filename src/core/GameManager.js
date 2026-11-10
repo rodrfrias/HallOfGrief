@@ -1,7 +1,7 @@
 // Para probar de a una sola sala (por ejemplo ["Depression"]).
 // En null se juega el recorrido completo.
+// const DEBUG_ONLY_ROOMS = ["Bargaining"];
 const DEBUG_ONLY_ROOMS = null;
-
 // Objeto que cada sala deja en el memorial de la sala de Aceptación
 const MEMORY_ITEMS = {
   Denial: "vase", // el florero con flores

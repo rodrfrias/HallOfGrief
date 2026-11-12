@@ -93,6 +93,7 @@ export class DenialRoom {
 
     this.buildRoom();
     this._hookRenderer();
+    this.audio?.startDenial(0.6);
   }
 
   _hookRenderer() {
@@ -142,6 +143,7 @@ export class DenialRoom {
     }
     this.textures.forEach((texture) => texture.dispose());
     this.textures.length = 0;
+    this.audio?.stopDenial();
   }
 
   createFloorStainTexture() {
@@ -1760,20 +1762,25 @@ export class DenialRoom {
       object.userData.accepted = true;
       this.anomaliesAccepted++;
       this.startClock();
-      uiPromptCallback(
-        "Reconoces que el tiempo se había detenido. Las agujas vuelven a moverse.",
-      );
+      this.audio?.denialFound("clock");
+      // uiPromptCallback(
+      //   "Reconoces que el tiempo se había detenido. Las agujas vuelven a moverse.",
+      // );
       this.checkProgress(uiPromptCallback);
     }
 
     if (object.userData.id === "drawer" && !object.userData.accepted) {
       object.userData.accepted = true;
+      this.audio?.denialFound("drawer");
+      this.anomaliesAccepted++;
       this.closeDrawer();
-      uiPromptCallback("Empujas el cajón hasta dejarlo al ras.");
+      
+      // uiPromptCallback("Empujas el cajón hasta dejarlo al ras.");
     }
 
     if (object.userData.id === "frame" && !object.userData.accepted) {
       object.userData.accepted = true;
+      this.audio?.denialFound("frame");
       this.frame.rotation.z = 0;
       this.anomaliesAccepted++;
       uiPromptCallback("Aceptas la distorsión del entorno.");
@@ -1798,7 +1805,9 @@ export class DenialRoom {
       minuteHand.rotation.z = -((total % 3600) / 3600) * TAU;
       secondHand.rotation.z = -((total % 60) / 60) * TAU;
       if (!this._disposed) this._clockRaf = requestAnimationFrame(tick);
+      if (whole !== this._lastWhole) { this._lastWhole = whole; this.audio?.denialClockTick(); }
     };
+    
     this._clockRaf = requestAnimationFrame(tick);
   }
 

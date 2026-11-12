@@ -45,12 +45,14 @@ export class BargainingRoom {
 
     this.heldObject = null;
     this.failedAttempts = 0;
+    this.tickAcc = 0;
     this.maxFails = 4;
     this.objectsPlaced = 0;
     this.state = "SEARCHING";
 
     this.clockRunning = true;
     this.clockTime = 0;
+    this.tickAcc = 0;
 
     this.lastTime = null;
     this.ambientCol = new THREE.Color(0x6b4423);
@@ -58,8 +60,12 @@ export class BargainingRoom {
     this.wallProps = [];
 
     this.buildRoom();
+    this.audio?.startBargain();
   }
 
+  dispose() {
+    this.audio?.stopBargain();
+  }
   getZLimit() {
     return this.doorZ - this.roomD + 0.5;
   }
@@ -545,6 +551,7 @@ export class BargainingRoom {
         this.heldObject = null;
 
         this.failedAttempts++;
+        this.audio?.bargainReject(this.failedAttempts, this.maxFails);
         this.checkStateTransition();
       } else {
         tempMsg("Esta bloqueada. Todavía intentás encontrar otra salida");
@@ -605,7 +612,7 @@ export class BargainingRoom {
 
         this.heldObject = null;
         this.objectsPlaced++;
-        this.audio?.playTick();
+        this.audio?.bargainPlace(this.objectsPlaced);
 
         if (this.objectsPlaced >= 4) {
           this.resolveRoom(uiPromptCallback);
@@ -617,6 +624,7 @@ export class BargainingRoom {
   checkStateTransition() {
     if (this.failedAttempts >= this.maxFails && this.state === "SEARCHING") {
       this.state = "LETTING_GO";
+      this.audio?.bargainLettingGo();
 
       this.objects.forEach((obj) => {
         obj.traverse((child) => {
@@ -642,6 +650,7 @@ export class BargainingRoom {
   }
 
   resolveRoom(uiPromptCallback) {
+    this.audio?.bargainResolve();
     this.state = "RESOLVED";
     this.isDoorUnlocked = true;
 
@@ -724,6 +733,13 @@ export class BargainingRoom {
       this.clockHands.hourHand.rotation.z = -((total / 43200) % 1) * TAU;
       this.clockHands.minuteHand.rotation.z = -((total % 3600) / 3600) * TAU;
       this.clockHands.secondHand.rotation.z = -((total % 60) / 60) * TAU;
+      if (this.state === "RESOLVED") {
+        this.tickAcc += dt;
+        if (this.tickAcc >= 1) {
+          this.tickAcc -= 1;
+          this.audio?.playClockTick();
+        }
+      }
     }
   }
 

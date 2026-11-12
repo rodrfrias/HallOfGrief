@@ -445,6 +445,8 @@ export class AngerRoom {
     this.buildRoom();
     if (!fontsWereReady)
       AngerRoom.preloadFonts().then(() => this.refreshBackWall());
+
+    this.audio?.startAnger();
   }
 
   static fontsLoaded() {
@@ -1166,6 +1168,7 @@ export class AngerRoom {
   releaseRoom(uiPromptCallback) {
     this.isDoorUnlocked = true;
     this.startClock();
+    this.audio?.angerRelease();
 
     setTimeout(() => {
       (uiPromptCallback || this.say)("La ira se disipa. Escuchás un reloj...");
@@ -1394,7 +1397,7 @@ export class AngerRoom {
     const whole = Math.floor(elapsed);
     if (whole !== this.lastTick) {
       this.lastTick = whole;
-      this.audio?.playTick();
+      this.audio?.playClockTick();
     }
     const jump = Math.min(1, (elapsed - whole) / 0.15);
     const total = base + whole + (1 - Math.pow(1 - jump, 3));
@@ -1429,6 +1432,12 @@ export class AngerRoom {
   }
 
   updateWall(dt, playerDepth, time) {
+    if (!this.stretching) {
+      const gap = this.currentD - playerDepth;
+      this.audio?.angerApproach(
+        1 - smooth(CFG.triggerDist, CFG.triggerDist + 2.5, gap),
+      );
+    }
     if (!this.stretching && this.currentD - playerDepth < CFG.triggerDist) {
       this.stretching = true;
       this.stretchStart = time;
@@ -1436,6 +1445,7 @@ export class AngerRoom {
       this.shakeSpike = 1;
       this.lockMovement = true;
       this.say("La ira consume TODO");
+      this.audio?.angerSilence();
     }
 
     let newD = this.currentD;
@@ -1461,6 +1471,7 @@ export class AngerRoom {
         0.55 * (1 - 0.85 * smooth(6, 26, this.currentD));
       if (this.currentD >= this.maxD - 0.01) {
         this.wallSwapped = true;
+        this.audio?.angerUnderwater();
         this.lockMovement = false;
         // El fondo pasa a ser una pared más: mismo color y material que las otras,
         // con un rastro tenue (tono sobre tono) de las frases
@@ -1614,5 +1625,9 @@ export class AngerRoom {
     this.camera.position.set(shakeX, shakeY, this.kick * 0.05 * this.intensity);
     this.camera.rotation.z =
       Math.sin(time * 55) * 0.008 * this.kick * this.intensity;
+  }
+
+  dispose() {
+    this.audio?.stopAnger();
   }
 }

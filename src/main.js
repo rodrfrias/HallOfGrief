@@ -65,13 +65,14 @@ class App {
       overlay.style.display = "none";
       this.controls.lock();
       this.audioManager.init();
-      this.audioManager.playAmbientDissonance();
+      this.audioManager.startCorridor(0);
     });
   }
 
   buildWorld() {
     this.corridor = new Corridor(this.scene);
     this.corridor.setCorridorState(0, this.scene);
+    this.corridor.onFlicker = () => this.audioManager.corridorFlicker();
     this.initCorridorStateControls();
   }
 
@@ -90,6 +91,7 @@ class App {
       const state = stateByKey[event.code];
       if (state === undefined) return;
       this.corridor.setCorridorState(state, this.scene);
+      this.audioManager.setCorridorAudioState(state);
     });
   }
 
@@ -108,6 +110,8 @@ class App {
 
       if (obj.userData.id === "corridorDoor") {
         this.isTransitioning = true;
+        this.audioManager.corridorDoorOpen();
+
         this.lastDoorPivot = obj.parent;
         this.animateDoorAndLoad(obj.parent);
       } else if (this.currentRoom) {
@@ -274,7 +278,7 @@ class App {
     }
 
     if (this.currentRoom) this.unloadRoom(this.currentRoom);
-
+    
     const roomFactories = {
       Denial: () =>
         new DenialRoom(
@@ -339,7 +343,7 @@ class App {
 
     // Apagamos el pasillo
     this.corridor.segments.forEach((seg) => (seg.visible = false));
-
+    this.audioManager.stopCorridor(1.2);
     // RESET DE AMBIENTE: Apagamos la niebla clara global para que la sala no tenga resplandores
     this.scene.background.setHex(0x020304);
     if (this.scene.fog) {
@@ -368,7 +372,7 @@ class App {
     }, 100);
   }
 
-  //ACA
+  
   animateExitAndLoad(innerDoorPivot) {
     if (!innerDoorPivot) return;
 
@@ -436,6 +440,7 @@ class App {
     // Actualiza aspecto del pasillo
     const newState = this.gameManager.getCorridorState();
     this.corridor.setCorridorState(newState, this.scene);
+    this.audioManager.startCorridor(newState);
 
     // TELETRANSPORTE AL ANCLA (A la caja negra en X=0)
     const doorGroup = this.lastDoorPivot.parent;
@@ -595,15 +600,31 @@ class App {
     }
 
     // 2. Lógica de renderizado de entornos
+        // 2. Lógica de renderizado de entornos
     if (!this.currentRoom) {
       this.corridor.update(elapsedTime, this.controls.getObject().position.z);
-    } else if (typeof this.currentRoom.update === "function") {
-      // Ejecuta el temblor y los eventos de AngerRoom
-      this.currentRoom.update(elapsedTime);
+
+      // Pasos (solo en el pasillo)
+      const p = this.controls.getObject().position;
+      if (this._lastStepPos) {
+        const d = Math.hypot(p.x - this._lastStepPos.x, p.z - this._lastStepPos.z);
+        if (d < 0.5) this._stepDist = (this._stepDist || 0) + d; // ignora teletransportes
+        if (this._stepDist >= 0.8) {
+          this._stepDist = 0;
+          this.audioManager.corridorStep();
+        }
+      }
+      this._lastStepPos = { x: p.x, z: p.z };
+    } else {
+      this._lastStepPos = null;
+      if (typeof this.currentRoom.update === "function") {
+        this.currentRoom.update(elapsedTime);
+      }
     }
 
     this.checkRaycastHover();
     this.renderer.render(this.scene, this.camera);
+    
   }
 }
 

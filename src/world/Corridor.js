@@ -57,6 +57,7 @@ export class Corridor {
     this.debrisMeshes = [];
     this.interactables = [];
     this.currentState = 0;
+    this.onFlicker = null;
     this.defaultFogDensity = scene.fog ? scene.fog.density : 0.095;
     this.buildCorridor();
   }
@@ -1351,6 +1352,7 @@ export class Corridor {
     if (this.currentState === 1) {
       this.flickerLights.forEach((item) => {
         if (time >= item.nextSoftFlickerAt) {
+          if (this.onFlicker) this.onFlicker();
           item.softFlickerUntil = time + 0.12;
           item.nextSoftFlickerAt = time + 8 + Math.random() * 10;
         }
@@ -1369,6 +1371,7 @@ export class Corridor {
     this.flickerLights.forEach((item, index) => {
       const noise = Math.sin(time * 10 + index * 2) * 0.04;
       const isFlickerFrame = Math.random() < 0.02;
+      if (isFlickerFrame && this.onFlicker) this.onFlicker();
       let factor = 1.0 + noise;
       if (isFlickerFrame) factor *= 0.3;
 

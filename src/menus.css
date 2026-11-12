@@ -1,0 +1,258 @@
+/* Menús de Hall of Grief: inicio y pausa. Sobrios, sans-serif, alto contraste. */
+
+:root {
+  --hog-veil: rgba(6, 8, 10, 0.9);
+  --hog-veil-pause: rgba(5, 7, 9, 0.62);
+  --hog-card: rgba(18, 21, 25, 0.86);
+  --hog-line: rgba(209, 213, 219, 0.16);
+  --hog-text: #e5e7eb;
+  --hog-muted: #a3a9b3;
+  --hog-accent: #e0a030;
+  --hog-focus: #f4d28a;
+  --hog-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.hog-menu[hidden] {
+  display: none !important;
+}
+
+#overlay.hog-menu,
+#pause-menu.hog-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 100; /* por encima del fundido (99) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  font-family: var(--hog-font);
+  color: var(--hog-text);
+  background: var(--hog-veil);
+  animation: hog-fade 0.5s ease both;
+}
+
+#pause-menu.hog-menu {
+  background: var(--hog-veil-pause);
+  backdrop-filter: blur(3px);
+}
+
+:is(#overlay, #pause-menu) .hog-card {
+  width: min(460px, 100%);
+  padding: 36px 32px 28px;
+  background: var(--hog-card);
+  border: 1px solid var(--hog-line);
+  border-radius: 6px;
+  text-align: left;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+:is(#overlay, #pause-menu) .hog-title {
+  margin: 0 0 6px;
+  font-family: var(--hog-font);
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: var(--hog-text);
+}
+
+:is(#overlay, #pause-menu) .hog-title--sm {
+  font-size: 1.5rem;
+}
+
+:is(#overlay, #pause-menu) .hog-lede {
+  margin: 0 0 20px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--hog-muted);
+}
+
+:is(#overlay, #pause-menu) .hog-warning {
+  margin: 0 0 24px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--hog-text);
+  border-left: 3px solid var(--hog-accent);
+  background: rgba(224, 160, 48, 0.07);
+}
+
+:is(#overlay, #pause-menu) .hog-options {
+  margin: 0 0 24px;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--hog-line);
+}
+
+:is(#overlay, #pause-menu) .hog-h2 {
+  margin: 0 0 14px;
+  font-family: var(--hog-font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hog-muted);
+}
+
+:is(#overlay, #pause-menu) .hog-row {
+  display: grid;
+  grid-template-columns: auto 1fr 3.2em;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+}
+
+:is(#overlay, #pause-menu) .hog-row output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--hog-muted);
+}
+
+/* Deslizador */
+:is(#overlay, #pause-menu) .hog-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px; /* zona de toque cómoda */
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  --fill: 100%;
+}
+:is(#overlay, #pause-menu) .hog-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--hog-accent) var(--fill), rgba(209, 213, 219, 0.25) var(--fill));
+}
+:is(#overlay, #pause-menu) .hog-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(209, 213, 219, 0.25);
+}
+:is(#overlay, #pause-menu) .hog-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hog-accent);
+}
+:is(#overlay, #pause-menu) .hog-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--hog-text);
+  background: #14171b;
+}
+:is(#overlay, #pause-menu) .hog-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--hog-text);
+  background: #14171b;
+}
+
+/* Botones */
+:is(#overlay, #pause-menu) .hog-btn,
+:is(#overlay, #pause-menu) .hog-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 20px;
+  font-family: var(--hog-font);
+  font-size: 1rem;
+  color: var(--hog-text);
+  background: transparent;
+  border: 1px solid var(--hog-line);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+:is(#overlay, #pause-menu) .hog-btn:hover,
+:is(#overlay, #pause-menu) .hog-toggle:hover {
+  background: rgba(209, 213, 219, 0.08);
+  border-color: rgba(209, 213, 219, 0.35);
+}
+:is(#overlay, #pause-menu) .hog-btn--primary {
+  width: 100%;
+  background: rgba(224, 160, 48, 0.14);
+  border-color: var(--hog-accent);
+}
+:is(#overlay, #pause-menu) .hog-btn--primary:hover {
+  background: rgba(224, 160, 48, 0.24);
+}
+:is(#overlay, #pause-menu) .hog-btn--quiet {
+  width: 100%;
+  color: var(--hog-muted);
+  font-size: 0.9rem;
+}
+:is(#overlay, #pause-menu) .hog-toggle[aria-pressed="true"] {
+  border-color: var(--hog-accent);
+  background: rgba(224, 160, 48, 0.12);
+}
+:is(#overlay, #pause-menu) .hog-toggle__state {
+  padding-left: 10px;
+  border-left: 1px solid var(--hog-line);
+  color: var(--hog-muted);
+}
+
+/* El foco siempre se ve */
+:is(#overlay, #pause-menu) :focus-visible {
+  outline: 3px solid var(--hog-focus);
+  outline-offset: 3px;
+}
+
+:is(#overlay, #pause-menu) .hog-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+:is(#overlay, #pause-menu) .hog-hint {
+  margin: 18px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--hog-muted);
+}
+
+:is(#overlay, #pause-menu) .hog-note {
+  min-height: 1.4em;
+  margin: 14px 0 6px;
+  font-size: 0.9rem;
+  color: var(--hog-focus);
+}
+
+/* En pausa se oculta la retícula y el texto flotante para no mezclar capas */
+body.is-paused #crosshair,
+body.is-paused #ui-prompt {
+  opacity: 0;
+}
+
+@keyframes hog-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #overlay.hog-menu,
+  #pause-menu.hog-menu {
+    animation: none;
+  }
+  :is(#overlay, #pause-menu) .hog-btn,
+  :is(#overlay, #pause-menu) .hog-toggle {
+    transition: none;
+  }
+}
+
+/* Por si style.css todavía tiene reglas viejas para #btn-start (mismo id que usa main.js) */
+#btn-start.hog-btn {
+  font-family: var(--hog-font);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--hog-text);
+  box-shadow: none;
+  text-shadow: none;
+}

@@ -1,15 +1,54 @@
 export class AudioManager {
   constructor() {
     this.ctx = null;
+    this.masterGain = null;
+    // Volumen y mute viven acá desde el principio: el menú de inicio los toca antes de init()
+    this.volume = 1; // 0 a 1 (lo que mueve el deslizador)
+    this.muted = false;
+    try {
+      const v = parseFloat(localStorage.getItem("hog.volume"));
+      if (Number.isFinite(v)) this.volume = Math.max(0, Math.min(1, v));
+      this.muted = localStorage.getItem("hog.muted") === "1";
+    } catch (e) {}
   }
 
   init() {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Todo el audio pasa por acá antes de salir a los parlantes
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.connect(this.ctx.destination);
+      this._applyMaster(true);
     }
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
+  }
+
+  _applyMaster(immediate = false) {
+    if (!this.masterGain) return;
+    // Curva perceptual: la ganancia sube con el cuadrado del deslizador
+    const g = this.muted ? 0 : this.volume * this.volume;
+    if (immediate) {
+      this.masterGain.gain.value = g;
+    } else {
+      this.masterGain.gain.setTargetAtTime(g, this.ctx.currentTime, 0.05); // sin clics
+    }
+  }
+
+  // v entre 0 y 1
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, Number(v) || 0));
+    try { localStorage.setItem("hog.volume", String(this.volume)); } catch (e) {}
+    this._applyMaster();
+  }
+
+  // Sin argumento alterna; silenciar no pierde el volumen elegido
+  toggleMute(isMuted) {
+    this.muted = typeof isMuted === "boolean" ? isMuted : !this.muted;
+    try { localStorage.setItem("hog.muted", this.muted ? "1" : "0"); } catch (e) {}
+    this._applyMaster();
+    return this.muted;
   }
 
   // Tono grave disonante (Se desvanece a los 3.5 segundos para no quedar zumbando)
@@ -31,7 +70,7 @@ export class AudioManager {
 
     osc1.connect(gain);
     osc2.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.masterGain);
 
     osc1.start();
     osc2.start();
@@ -50,7 +89,7 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.masterGain);
 
     osc.start();
     osc.stop(this.ctx.currentTime + 0.15);
@@ -62,7 +101,7 @@ export class AudioManager {
     const now = this.ctx.currentTime;
     const master = this.ctx.createGain();
     master.gain.value = level;
-    master.connect(this.ctx.destination);
+    master.connect(this.masterGain);
 
     const len = Math.floor(this.ctx.sampleRate * 0.5);
     const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -127,7 +166,7 @@ export class AudioManager {
     g.gain.exponentialRampToValueAtTime(level, now + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
     o.connect(g);
-    g.connect(this.ctx.destination);
+    g.connect(this.masterGain);
     o.start(now);
     o.stop(now + 0.65);
   }
@@ -142,7 +181,7 @@ export class AudioManager {
     g.gain.setValueAtTime(0.03, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
     o.connect(g);
-    g.connect(this.ctx.destination);
+    g.connect(this.masterGain);
     o.start(now);
     o.stop(now + 0.04);
   }
@@ -165,7 +204,7 @@ export class AudioManager {
     const now = this.ctx.currentTime;
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.05, now + 3);
-    src.connect(bp); bp.connect(gain); gain.connect(this.ctx.destination);
+    src.connect(bp); bp.connect(gain); gain.connect(this.masterGain);
     src.start();
     this.rainNode = { src, gain };
   }
@@ -185,7 +224,7 @@ export class AudioManager {
   const now = this.ctx.currentTime;
   const master = this.ctx.createGain();
   master.gain.value = level;
-  master.connect(this.ctx.destination);
+  master.connect(this.masterGain);
 
   // Cuerpo grave: el triángulo tiene armónicos, así se oye en parlantes chicos
   const o = this.ctx.createOscillator();
@@ -233,7 +272,7 @@ export class AudioManager {
     const now = ctx.currentTime;
     const bus = ctx.createGain();
     bus.gain.value = 1;
-    bus.connect(ctx.destination);
+    bus.connect(this.masterGain);
 
     const len = ctx.sampleRate * 3;
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -293,7 +332,7 @@ export class AudioManager {
     const master = this.ctx.createGain();
     master.gain.setValueAtTime(0.08, now);
     master.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
-    master.connect(this.ctx.destination);
+    master.connect(this.masterGain);
     [[1, "sine"], [2.76, "triangle"]].forEach(([k, type]) => {
       const o = this.ctx.createOscillator();
       o.type = type;
@@ -311,7 +350,7 @@ export class AudioManager {
     const now = ctx.currentTime;
     const master = ctx.createGain();
     master.gain.value = 0.3;
-    master.connect(ctx.destination);
+    master.connect(this.masterGain);
     const len = Math.floor(ctx.sampleRate * 0.3);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -365,7 +404,7 @@ export class AudioManager {
     lfoGain.connect(g.gain);
     src.connect(bp);
     bp.connect(g);
-    g.connect(ctx.destination);
+    g.connect(this.masterGain);
     src.start(now);
     lfo.start(now);
     lfo.stop(now + 2.4);
@@ -414,7 +453,7 @@ export class AudioManager {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.25;
     out.connect(limiter);
-    limiter.connect(ctx.destination);
+    limiter.connect(this.masterGain);
 
     // Bus aparte para el tic-tac "fantasma": se apaga cuando el reloj vuelve a andar
     const ghostBus = ctx.createGain();
@@ -493,7 +532,7 @@ export class AudioManager {
 
   _denialDest(pan = 0, bus = null) {
     const d = this.denial;
-    const dest = bus || (d && d.out) || (this.anger && this.anger.out) || (this.bargain && this.bargain.out) || this.ctx.destination;
+    const dest = bus || (d && d.out) || (this.anger && this.anger.out) || (this.bargain && this.bargain.out) || this.masterGain;
     if (!pan || !this.ctx.createStereoPanner) return dest;
     const p = this.ctx.createStereoPanner();
     p.pan.value = pan;
@@ -700,7 +739,7 @@ export class AudioManager {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.25;
     out.connect(limiter);
-    limiter.connect(ctx.destination);
+    limiter.connect(this.masterGain);
 
     // Filtro maestro: abierto al principio; "bajo el agua" después de la pared
     const lp = ctx.createBiquadFilter();
@@ -937,7 +976,7 @@ export class AudioManager {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.25;
     out.connect(limiter);
-    limiter.connect(ctx.destination);
+    limiter.connect(this.masterGain);
 
     // Filtro de los acordes (los tintineos salen directo, sin filtrar)
     const lp = ctx.createBiquadFilter();
@@ -1229,7 +1268,7 @@ export class AudioManager {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.25;
     out.connect(limiter);
-    limiter.connect(ctx.destination);
+    limiter.connect(this.masterGain);
 
     const dry = ctx.createGain();
     dry.connect(out);

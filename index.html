@@ -11,17 +11,72 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/menus.css" />
   </head>
   <body>
-    <!-- Pantalla de inicio para interacción del usuario (Aviso sensible) -->
-    <div id="overlay">
-      <div class="modal">
-        <h1>Hall of Grief</h1>
-        <p>Esta experiencia explora emocionalmente el proceso del duelo.</p>
-        <p class="subtext">
-          Haz clic en "Comenzar" e interactúa con el entorno para avanzar.
+    <!-- Menú de inicio: aviso sensible, accesibilidad y botón de comenzar -->
+    <div id="overlay" class="hog-menu" role="dialog" aria-modal="true" aria-labelledby="start-title">
+      <div class="hog-card">
+        <h1 id="start-title" class="hog-title">Hall of Grief</h1>
+        <p class="hog-lede">
+          Un recorrido por las etapas del duelo. No hay que ganar nada: se avanza a tu ritmo.
         </p>
-        <button id="btn-start">Comenzar</button>
+        <p class="hog-warning" role="note">
+          Contenido sensible: esta experiencia trata sobre el duelo. Podés pausarla
+          en cualquier momento con la tecla Esc.
+        </p>
+
+        <section class="hog-options" aria-labelledby="start-options">
+          <h2 id="start-options" class="hog-h2">Accesibilidad</h2>
+          <div class="hog-row">
+            <label for="vol-start">Volumen</label>
+            <input id="vol-start" class="hog-range" type="range" min="0" max="100" step="1" value="100" data-volume />
+            <output for="vol-start" data-volume-out>100%</output>
+          </div>
+          <button type="button" class="hog-toggle" data-mute aria-pressed="false">
+            <span>Silenciar</span>
+            <span class="hog-toggle__state" data-mute-state aria-hidden="true">No</span>
+          </button>
+        </section>
+
+        <div class="hog-actions">
+          <button id="btn-start" class="hog-btn hog-btn--primary" type="button">Comenzar</button>
+        </div>
+        <p class="hog-hint">
+          W A S D para moverte · mouse para mirar · clic para interactuar · Esc para pausar.
+          Se recomiendan auriculares, pero también se escucha con parlantes.
+        </p>
+      </div>
+    </div>
+
+    <!-- Menú de pausa: aparece al soltar el pointer lock (Esc) -->
+    <div id="pause-menu" class="hog-menu" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden>
+      <div class="hog-card">
+        <h2 id="pause-title" class="hog-title hog-title--sm">En pausa</h2>
+        <p class="hog-lede">Podés quedarte el tiempo que necesites.</p>
+
+        <div class="hog-actions">
+          <button id="btn-resume" class="hog-btn hog-btn--primary" type="button">Continuar</button>
+        </div>
+
+        <section class="hog-options" style="margin-top: 24px" aria-labelledby="pause-options">
+          <h2 id="pause-options" class="hog-h2">Accesibilidad</h2>
+          <div class="hog-row">
+            <label for="vol-pause">Volumen</label>
+            <input id="vol-pause" class="hog-range" type="range" min="0" max="100" step="1" value="100" data-volume />
+            <output for="vol-pause" data-volume-out>100%</output>
+          </div>
+          <button type="button" class="hog-toggle" data-mute aria-pressed="false">
+            <span>Silenciar</span>
+            <span class="hog-toggle__state" data-mute-state aria-hidden="true">No</span>
+          </button>
+        </section>
+
+        <p id="pause-note" class="hog-note" role="status" aria-live="polite"></p>
+
+        <div class="hog-actions">
+          <button id="btn-restart" class="hog-btn hog-btn--quiet" type="button">Reiniciar la experiencia</button>
+        </div>
       </div>
     </div>
 

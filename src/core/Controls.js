@@ -42,6 +42,21 @@ export class FirstPersonControls {
 
     document.addEventListener("keydown", (e) => this.onKeyDown(e));
     document.addEventListener("keyup", (e) => this.onKeyUp(e));
+
+    // El navegador suelta el pointer lock por su cuenta (Esc, cambiar de pestaña) sin llamar
+    // a unlock(): sin esto isLocked quedaba en true y la cámara seguía girando con el mouse.
+    document.addEventListener("pointerlockchange", () => {
+      this.isLocked = document.pointerLockElement === this.domElement;
+      if (!this.isLocked) {
+        // soltamos las teclas para no quedar "caminando" al pausar
+        this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+        this.velocity.set(0, 0, 0);
+      }
+    });
+    // Si el navegador rechaza el lock (por ejemplo, justo después de Esc)
+    document.addEventListener("pointerlockerror", () => {
+      this.isLocked = false;
+    });
   }
 
   lock() {

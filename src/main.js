@@ -9,6 +9,7 @@ import { BargainingRoom } from "./world/BargainingRoom.js";
 import { DepressionRoom } from "./world/DepressionRoom.js";
 import { AcceptanceRoom } from "./world/AcceptanceRoom.js";
 import { showEndScreen } from "./core/EndScreen.js";
+import { Menus } from "./ui/Menus.js";
 
 class App {
   constructor() {
@@ -52,6 +53,7 @@ class App {
     );
     this.scene.add(this.controls.getObject());
     this.audioManager = new AudioManager();
+    this.menus = new Menus(this.audioManager, this.controls);
 
     this.fadeOverlay = document.createElement("div");
     this.fadeOverlay.style.cssText =
@@ -63,6 +65,7 @@ class App {
 
     startBtn.addEventListener("click", () => {
       overlay.style.display = "none";
+      this.menus.markStarted();
       this.controls.lock();
       this.audioManager.init();
       this.audioManager.startCorridor(0);
@@ -218,7 +221,8 @@ class App {
   }
 
   finishExperience() {
-    this.controls.unlock();
+    this.menus.markEnded();
+    this.menus.unlockQuietly();
     showEndScreen();
   }
 
@@ -326,7 +330,7 @@ class App {
           (t) => this.showPrompt(t),
           {
             memories: [...this.gameManager.memories],
-            setControlsLocked: (locked) => (locked ? this.controls.lock() : this.controls.unlock()),
+            setControlsLocked: (locked) => (locked ? this.controls.lock() : this.menus.unlockQuietly()),
             onFinish: () => this.finishExperience(),
           },
         ),

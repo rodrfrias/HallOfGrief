@@ -1355,9 +1355,7 @@ export class DenialRoom {
           st.placed = true;
           const idx = this.interactables.indexOf(st.group);
           if (idx >= 0) this.interactables.splice(idx, 1);
-          say(
-            "Colocas las flores en el jarrón.",
-          );
+          say("Colocas las flores en el jarrón.");
         });
       } else {
         this._tweenBouquet(st.lyingT, 0, 0.5);
@@ -1748,13 +1746,9 @@ export class DenialRoom {
     this._ui = uiPromptCallback;
     if (object.userData.id === "entryDoor") {
       if (!this.isDoorUnlocked) {
-        uiPromptCallback(
-          "Esta bloqueada. Preferís creer que nada cambió.",
-        );
+        uiPromptCallback("Esta bloqueada. Preferís creer que nada cambió.");
       } else {
-        uiPromptCallback(
-          "Dejar de mirar hacia otro lado (Interactuar)",
-        );
+        uiPromptCallback("Dejar de mirar hacia otro lado (Interactuar)");
       }
     }
 
@@ -1774,7 +1768,7 @@ export class DenialRoom {
       this.audio?.denialFound("drawer");
       this.anomaliesAccepted++;
       this.closeDrawer();
-      
+
       // uiPromptCallback("Empujas el cajón hasta dejarlo al ras.");
     }
 
@@ -1805,9 +1799,12 @@ export class DenialRoom {
       minuteHand.rotation.z = -((total % 3600) / 3600) * TAU;
       secondHand.rotation.z = -((total % 60) / 60) * TAU;
       if (!this._disposed) this._clockRaf = requestAnimationFrame(tick);
-      if (whole !== this._lastWhole) { this._lastWhole = whole; this.audio?.denialClockTick(); }
+      if (whole !== this._lastWhole) {
+        this._lastWhole = whole;
+        this.audio?.denialClockTick();
+      }
     };
-    
+
     this._clockRaf = requestAnimationFrame(tick);
   }
 

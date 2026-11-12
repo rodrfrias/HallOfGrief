@@ -30,7 +30,8 @@ export class Menus {
       slider.addEventListener("input", () => {
         this.audio.setVolume(slider.value / 100);
         // Si estaba silenciado y el jugador mueve el volumen, es que quiere oír
-        if (this.audio.muted && Number(slider.value) > 0) this.audio.toggleMute(false);
+        if (this.audio.muted && Number(slider.value) > 0)
+          this.audio.toggleMute(false);
         this.syncAudioUI();
       });
       // Al soltar el deslizador suena una nota suave para que se oiga el nivel elegido
@@ -52,7 +53,10 @@ export class Menus {
     const muted = this.audio.muted;
     this.sliders.forEach((s) => {
       s.value = String(pct);
-      s.setAttribute("aria-valuetext", muted ? `${pct}%, silenciado` : `${pct}%`);
+      s.setAttribute(
+        "aria-valuetext",
+        muted ? `${pct}%, silenciado` : `${pct}%`,
+      );
       s.style.setProperty("--fill", `${pct}%`);
     });
     this.outputs.forEach((o) => (o.textContent = `${pct}%`));
@@ -102,7 +106,8 @@ export class Menus {
         return;
       }
       this.$restart.dataset.armed = "1";
-      this.$restart.textContent = "¿Seguro? Se pierde el recorrido. Clic de nuevo para reiniciar";
+      this.$restart.textContent =
+        "¿Seguro? Se pierde el recorrido. Clic de nuevo para reiniciar";
       timer = setTimeout(() => this.resetRestart(label), 4000);
     });
     this._resetRestart = () => {

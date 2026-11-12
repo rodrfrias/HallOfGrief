@@ -20,7 +20,13 @@ const CFG = {
   chord: [130.81, 196.0, 329.63, 493.88, 587.33],
 
   // Dónde están esparcidos los objetos del recorrido (x, z)
-  spots: [[-3.2, -13.2], [3.4, -14.6], [-3.6, -22.6], [4.2, -23.4], [-0.2, -26.2]],
+  spots: [
+    [-3.2, -13.2],
+    [3.4, -14.6],
+    [-3.6, -22.6],
+    [4.2, -23.4],
+    [-0.2, -26.2],
+  ],
   pot: { x: 0, z: -19 },
   table: { x: -7.0, z: -18.3, w: 2.7, d: 1.3 }, // w = ancho (eje z), d = profundidad (eje x)
 };
@@ -74,7 +80,15 @@ function drawDahlia(c, cx, cy, R, alpha = 1) {
 
 export class AcceptanceRoom {
   /* extras = { memories: ['vase','photo',...], setControlsLocked(bool), onFinish() } */
-  constructor(scene, doorFactory, initialState, camera, audio, say, extras = {}) {
+  constructor(
+    scene,
+    doorFactory,
+    initialState,
+    camera,
+    audio,
+    say,
+    extras = {},
+  ) {
     this.scene = scene;
     this.doorFactory = doorFactory;
     this.initialState = initialState;
@@ -89,7 +103,10 @@ export class AcceptanceRoom {
     this.scene.add(this.roomGroup);
 
     // Objetos del recorrido (si se prueba la sala sola, usa unos de ejemplo)
-    this.memories = extras.memories && extras.memories.length ? extras.memories.slice(0, 4) : ["vase", "photo", "key", "lantern"];
+    this.memories =
+      extras.memories && extras.memories.length
+        ? extras.memories.slice(0, 4)
+        : ["vase", "photo", "key", "lantern"];
 
     this.textures = [];
     this.items = [];
@@ -125,7 +142,10 @@ export class AcceptanceRoom {
       fogColor: scene.fog ? scene.fog.color.clone() : null,
       fogNear: scene.fog ? scene.fog.near : 2,
       fogFar: scene.fog ? scene.fog.far : 22,
-      bg: scene.background && scene.background.isColor ? scene.background.clone() : null,
+      bg:
+        scene.background && scene.background.isColor
+          ? scene.background.clone()
+          : null,
     };
 
     this.buildRoom();
@@ -156,7 +176,8 @@ export class AcceptanceRoom {
       this.scene.fog.near = this.saved.fogNear;
       this.scene.fog.far = this.saved.fogFar;
     }
-    if (this.saved.bg && this.scene.background && this.scene.background.isColor) this.scene.background.copy(this.saved.bg);
+    if (this.saved.bg && this.scene.background && this.scene.background.isColor)
+      this.scene.background.copy(this.saved.bg);
     this.textures.forEach((t) => t.dispose());
     this.textures = [];
   }
@@ -174,20 +195,36 @@ export class AcceptanceRoom {
     if (i > -1) this.interactables.splice(i, 1);
   }
   hitBox(w, h, d, x, y, z, userData) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ visible: false }));
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
     m.position.set(x, y, z);
     m.userData = userData;
     return m;
   }
   glowSprite(color, size, opacity = 1) {
     const s = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: this.glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }),
+      new THREE.SpriteMaterial({
+        map: this.glowTex,
+        color,
+        transparent: true,
+        opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        fog: false,
+      }),
     );
     s.scale.set(size, size, 1);
     return s;
   }
   std(color, extra = {}) {
-    return new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0, ...extra });
+    return new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.75,
+      metalness: 0,
+      ...extra,
+    });
   }
 
   /* ============================================================
@@ -215,7 +252,8 @@ export class AcceptanceRoom {
   setupAtmosphere() {
     this.camera.far = CFG.cameraFar;
     this.camera.updateProjectionMatrix();
-    if (this.scene.background && this.scene.background.isColor) this.scene.background.setHex(CFG.fog.color);
+    if (this.scene.background && this.scene.background.isColor)
+      this.scene.background.setHex(CFG.fog.color);
     else this.scene.background = new THREE.Color(CFG.fog.color);
     if (this.scene.fog) {
       this.scene.fog.color.setHex(CFG.fog.color);
@@ -256,7 +294,12 @@ export class AcceptanceRoom {
     c.fillRect(0, 0, 8, 512);
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(200, 24, 16),
-      new THREE.MeshBasicMaterial({ map: this.tex(cv), side: THREE.BackSide, fog: false, depthWrite: false }),
+      new THREE.MeshBasicMaterial({
+        map: this.tex(cv),
+        side: THREE.BackSide,
+        fog: false,
+        depthWrite: false,
+      }),
     );
     dome.position.set(0, 0, -30);
     dome.renderOrder = -10;
@@ -271,8 +314,16 @@ export class AcceptanceRoom {
     const { halfW: W, H, wallZ, doorZ } = CFG;
     const L = doorZ - wallZ; // 22
     const midZ = (doorZ + wallZ) / 2;
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xe9dec2, roughness: 0.95, side: THREE.DoubleSide });
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x8b6a4a, roughness: 0.8, side: THREE.DoubleSide });
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0xe9dec2,
+      roughness: 0.95,
+      side: THREE.DoubleSide,
+    });
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: 0x8b6a4a,
+      roughness: 0.8,
+      side: THREE.DoubleSide,
+    });
     const plane = (w, h, mat, x, y, z, ry = 0, rx = 0) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
       m.position.set(x, y, z);
@@ -304,7 +355,8 @@ export class AcceptanceRoom {
     c.fillStyle = "#d3c7aa";
     c.fillRect(0, 0, S, S);
     for (let i = 0; i < 3000; i++) {
-      c.fillStyle = Math.random() > 0.5 ? "rgba(90,70,40,0.07)" : "rgba(255,250,230,0.08)";
+      c.fillStyle =
+        Math.random() > 0.5 ? "rgba(90,70,40,0.07)" : "rgba(255,250,230,0.08)";
       c.fillRect(rnd(0, S), rnd(0, S), 3, 3);
     }
     c.strokeStyle = "rgba(110,90,60,0.35)";
@@ -313,7 +365,10 @@ export class AcceptanceRoom {
     const ft = this.tex(cv);
     ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
     ft.repeat.set(16, 22);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(2 * W, L), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.9 }));
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(2 * W, L),
+      new THREE.MeshStandardMaterial({ map: ft, roughness: 0.9 }),
+    );
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, 0.005, midZ);
     this.roomGroup.add(floor);
@@ -335,11 +390,26 @@ export class AcceptanceRoom {
     b.fillRect(0, 0, 64, 256);
     const beamTex = this.tex(bc);
     this.beams = [];
-    [[-3.5, -14], [-1.2, -21], [2.2, -17], [4.2, -24], [0.2, -12.5]].forEach(([x, z], i) => {
+    [
+      [-3.5, -14],
+      [-1.2, -21],
+      [2.2, -17],
+      [4.2, -24],
+      [0.2, -12.5],
+    ].forEach(([x, z], i) => {
       const mat = new THREE.MeshBasicMaterial({
-        map: beamTex, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false,
+        map: beamTex,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        fog: false,
       });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8 + (i % 2) * 0.6, 8), mat);
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.8 + (i % 2) * 0.6, 8),
+        mat,
+      );
       m.position.set(x, H / 2 + 0.4, z);
       m.rotation.set(0, 0.5 + i * 0.7, 0.32);
       m.renderOrder = 2;
@@ -351,25 +421,44 @@ export class AcceptanceRoom {
   /* ---------- Jardín: canteros, pasto que se mece, flores y árboles ---------- */
   buildGarden() {
     const soilMat = this.std(0x4a3626, { roughness: 1 });
-    const beds = [[-5.6, -0.9], [0.9, 5.6]];
-    const zMin = -26.4, zMax = -11.6;
+    const beds = [
+      [-5.6, -0.9],
+      [0.9, 5.6],
+    ];
+    const zMin = -26.4,
+      zMax = -11.6;
     beds.forEach(([x0, x1]) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, zMax - zMin), soilMat);
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(x1 - x0, zMax - zMin),
+        soilMat,
+      );
       m.rotation.x = -Math.PI / 2;
       m.position.set((x0 + x1) / 2, 0.012, (zMin + zMax) / 2);
       this.roomGroup.add(m);
     });
     // Plazoleta de piedra alrededor de la maceta
-    const plaza = new THREE.Mesh(new THREE.CircleGeometry(1.7, 40), this.std(0xdacfb2, { roughness: 0.9 }));
+    const plaza = new THREE.Mesh(
+      new THREE.CircleGeometry(1.7, 40),
+      this.std(0xdacfb2, { roughness: 0.9 }),
+    );
     plaza.rotation.x = -Math.PI / 2;
     plaza.position.set(CFG.pot.x, 0.02, CFG.pot.z);
     this.roomGroup.add(plaza);
 
     // Pasto instanciado: el vaivén ocurre en el vertex shader (sin costo de CPU)
     const blade = new THREE.BufferGeometry();
-    blade.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-0.03, 0, 0, 0.03, 0, 0, 0, 1, 0]), 3));
+    blade.setAttribute(
+      "position",
+      new THREE.BufferAttribute(
+        new Float32Array([-0.03, 0, 0, 0.03, 0, 0, 0, 1, 0]),
+        3,
+      ),
+    );
     this.grassMat = new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uHope: { value: 0 } }]),
+      uniforms: THREE.UniformsUtils.merge([
+        THREE.UniformsLib.fog,
+        { uTime: { value: 0 }, uHope: { value: 0 } },
+      ]),
       vertexShader: `
         uniform float uTime;
         varying float vH; varying float vTint;
@@ -399,12 +488,20 @@ export class AcceptanceRoom {
       fog: true,
     });
     const per = 2600;
-    const grass = new THREE.InstancedMesh(blade, this.grassMat, per * beds.length);
+    const grass = new THREE.InstancedMesh(
+      blade,
+      this.grassMat,
+      per * beds.length,
+    );
     const d = new THREE.Object3D();
     let k = 0;
     beds.forEach(([x0, x1]) => {
       for (let i = 0; i < per; i++) {
-        d.position.set(rnd(x0 + 0.05, x1 - 0.05), 0.012, rnd(zMin + 0.05, zMax - 0.05));
+        d.position.set(
+          rnd(x0 + 0.05, x1 - 0.05),
+          0.012,
+          rnd(zMin + 0.05, zMax - 0.05),
+        );
         d.rotation.set(0, rnd(0, Math.PI * 2), 0);
         d.scale.set(1, rnd(0.28, 0.62), 1);
         d.updateMatrix();
@@ -416,10 +513,18 @@ export class AcceptanceRoom {
 
     // Flores sueltas (esferas de color: estilo simple, sin detalle fotográfico)
     const palette = [0xf2c14e, 0xe8805f, 0xf4efe6, 0xe9a0b4, 0xd9b45b];
-    const flowers = new THREE.InstancedMesh(new THREE.SphereGeometry(0.065, 6, 5), new THREE.MeshBasicMaterial(), 150);
+    const flowers = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.065, 6, 5),
+      new THREE.MeshBasicMaterial(),
+      150,
+    );
     for (let i = 0; i < 150; i++) {
       const [x0, x1] = beds[i % 2];
-      d.position.set(rnd(x0 + 0.1, x1 - 0.1), rnd(0.38, 0.62), rnd(zMin + 0.1, zMax - 0.1));
+      d.position.set(
+        rnd(x0 + 0.1, x1 - 0.1),
+        rnd(0.38, 0.62),
+        rnd(zMin + 0.1, zMax - 0.1),
+      );
       d.rotation.set(0, 0, 0);
       d.scale.setScalar(rnd(0.8, 1.3));
       d.updateMatrix();
@@ -434,11 +539,23 @@ export class AcceptanceRoom {
     // Cuatro árboles bajos en las esquinas
     const trunk = this.std(0x6b4a32);
     const leaf = this.std(0x5f9a5a, { flatShading: true });
-    [[-6.8, -12.4], [6.8, -13.4], [6.8, -26.8], [-6.8, -26.2]].forEach(([x, z]) => {
-      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 2.6, 6), trunk);
+    [
+      [-6.8, -12.4],
+      [6.8, -13.4],
+      [6.8, -26.8],
+      [-6.8, -26.2],
+    ].forEach(([x, z]) => {
+      const t = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.22, 2.6, 6),
+        trunk,
+      );
       t.position.set(x, 1.3, z);
       this.roomGroup.add(t);
-      [[0, 3.1, 0, 1.2], [0.55, 2.7, 0.2, 0.85], [-0.5, 2.8, -0.3, 0.9]].forEach(([ox, oy, oz, r]) => {
+      [
+        [0, 3.1, 0, 1.2],
+        [0.55, 2.7, 0.2, 0.85],
+        [-0.5, 2.8, -0.3, 0.9],
+      ].forEach(([ox, oy, oz, r]) => {
         const f = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), leaf);
         f.position.set(x + ox, oy, z + oz);
         this.roomGroup.add(f);
@@ -455,24 +572,37 @@ export class AcceptanceRoom {
     c.fillStyle = "#8fbf7a";
     c.fillRect(0, 0, S, S);
     for (let i = 0; i < 2500; i++) {
-      c.fillStyle = Math.random() > 0.5 ? "rgba(60,110,60,0.18)" : "rgba(235,225,150,0.14)";
+      c.fillStyle =
+        Math.random() > 0.5 ? "rgba(60,110,60,0.18)" : "rgba(235,225,150,0.14)";
       c.fillRect(rnd(0, S), rnd(0, S), 3, 3);
     }
     const mt = this.tex(cv);
     mt.wrapS = mt.wrapT = THREE.RepeatWrapping;
     mt.repeat.set(60, 45);
-    const meadow = new THREE.Mesh(new THREE.PlaneGeometry(400, 300), new THREE.MeshBasicMaterial({ map: mt }));
+    const meadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(400, 300),
+      new THREE.MeshBasicMaterial({ map: mt }),
+    );
     meadow.rotation.x = -Math.PI / 2;
     meadow.position.set(0, -0.01, -150);
     this.roomGroup.add(meadow);
 
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 150), new THREE.MeshBasicMaterial({ color: 0xe3d3a8 }));
+    const path = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.8, 150),
+      new THREE.MeshBasicMaterial({ color: 0xe3d3a8 }),
+    );
     path.rotation.x = -Math.PI / 2;
     path.position.set(0, 0.01, CFG.wallZ - 75);
     this.roomGroup.add(path);
 
     const hillMat = new THREE.MeshBasicMaterial({ color: 0x86b374 });
-    [[-60, -150, 70, 16, 40], [30, -165, 80, 20, 45], [90, -140, 60, 14, 35], [-130, -170, 90, 22, 50], [0, -185, 100, 18, 40]].forEach(([x, z, sx, sy, sz]) => {
+    [
+      [-60, -150, 70, 16, 40],
+      [30, -165, 80, 20, 45],
+      [90, -140, 60, 14, 35],
+      [-130, -170, 90, 22, 50],
+      [0, -185, 100, 18, 40],
+    ].forEach(([x, z, sx, sy, sz]) => {
       const h = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), hillMat);
       h.scale.set(sx, sy, sz);
       h.position.set(x, 0, z);
@@ -482,7 +612,12 @@ export class AcceptanceRoom {
 
   stripVoid(group) {
     [...group.children].forEach((c) => {
-      if (c.isMesh && c.material && c.material.isMeshBasicMaterial && c.material.color.getHex() === 0x000000) {
+      if (
+        c.isMesh &&
+        c.material &&
+        c.material.isMeshBasicMaterial &&
+        c.material.color.getHex() === 0x000000
+      ) {
         group.remove(c);
         c.geometry.dispose();
         c.material.dispose();
@@ -520,9 +655,18 @@ export class AcceptanceRoom {
 
     // Luz que se cuela por los bordes de la puerta cuando se destraba
     this.edgeMat = new THREE.MeshBasicMaterial({
-      color: 0xffe2a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+      color: 0xffe2a0,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      fog: false,
     });
-    [[-0.61, 1.1, 0.05, 2.2], [0.61, 1.1, 0.05, 2.2], [0, 2.2, 1.27, 0.05]].forEach(([x, y, w, h]) => {
+    [
+      [-0.61, 1.1, 0.05, 2.2],
+      [0.61, 1.1, 0.05, 2.2],
+      [0, 2.2, 1.27, 0.05],
+    ].forEach(([x, y, w, h]) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), this.edgeMat);
       m.position.set(x, y, CFG.wallZ + 0.11);
       this.roomGroup.add(m);
@@ -533,7 +677,19 @@ export class AcceptanceRoom {
   // Huecos del frente de la mesa, relativos a su centro: [hacia la sala, a lo ancho].
   // La plataforma de atrás recibe el primer objeto que el usuario elija; el resto se agrupa adelante.
   frontSlots(count) {
-    const layouts = [[], [[0.3, 0]], [[0.25, -0.62], [0.25, 0.62]], [[0.2, -0.82], [0.3, 0], [0.2, 0.82]]];
+    const layouts = [
+      [],
+      [[0.3, 0]],
+      [
+        [0.25, -0.62],
+        [0.25, 0.62],
+      ],
+      [
+        [0.2, -0.82],
+        [0.3, 0],
+        [0.2, 0.82],
+      ],
+    ];
     return layouts[Math.max(0, Math.min(3, count))];
   }
 
@@ -547,9 +703,21 @@ export class AcceptanceRoom {
     const top = new THREE.Mesh(new THREE.BoxGeometry(D, 0.06, W), wood);
     top.position.set(tx, TOP - 0.03, tz);
     this.roomGroup.add(top);
-    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, TOP - 0.06, 0.08), wood);
-      leg.position.set(tx + sx * (D / 2 - 0.08), (TOP - 0.06) / 2, tz + sz * (W / 2 - 0.08));
+    [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, TOP - 0.06, 0.08),
+        wood,
+      );
+      leg.position.set(
+        tx + sx * (D / 2 - 0.08),
+        (TOP - 0.06) / 2,
+        tz + sz * (W / 2 - 0.08),
+      );
       this.roomGroup.add(leg);
     });
     const cc = canvasOf(256, 64);
@@ -562,23 +730,40 @@ export class AcceptanceRoom {
     const clothTex = this.tex(cc);
     clothTex.wrapS = THREE.RepeatWrapping;
     clothTex.repeat.set(4, 1);
-    const cloth = this.std(0xffffff, { map: clothTex, roughness: 1, side: THREE.DoubleSide });
-    const cTop = new THREE.Mesh(new THREE.BoxGeometry(D + 0.08, 0.014, W + 0.08), cloth);
+    const cloth = this.std(0xffffff, {
+      map: clothTex,
+      roughness: 1,
+      side: THREE.DoubleSide,
+    });
+    const cTop = new THREE.Mesh(
+      new THREE.BoxGeometry(D + 0.08, 0.014, W + 0.08),
+      cloth,
+    );
     cTop.position.set(tx, TOP + 0.007, tz);
     const dropH = 0.5;
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.08, dropH), cloth);
+    const front = new THREE.Mesh(
+      new THREE.PlaneGeometry(W + 0.08, dropH),
+      cloth,
+    );
     front.position.set(tx + D / 2 + 0.04, TOP - dropH / 2, tz);
     front.rotation.y = Math.PI / 2;
-    const sideL = new THREE.Mesh(new THREE.PlaneGeometry(D + 0.08, dropH), cloth);
+    const sideL = new THREE.Mesh(
+      new THREE.PlaneGeometry(D + 0.08, dropH),
+      cloth,
+    );
     sideL.position.set(tx, TOP - dropH / 2, tz - W / 2 - 0.04);
     const sideR = sideL.clone();
     sideR.position.z = tz + W / 2 + 0.04;
     this.roomGroup.add(cTop, front, sideL, sideR);
     this.memorialY = TOP + 0.014;
-    for (let i = 0; i < 4; i++) this.colliders.push({ x: tx + 0.1, z: tz - 1.0 + i * 0.67, r: 0.75 });
+    for (let i = 0; i < 4; i++)
+      this.colliders.push({ x: tx + 0.1, z: tz - 1.0 + i * 0.67, r: 0.75 });
 
     // Plataforma elevada, al fondo y al centro
-    const riser = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 1.0), darkWood);
+    const riser = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.2, 1.0),
+      darkWood,
+    );
     riser.position.set(tx - 0.25, this.memorialY + 0.1, tz);
     this.roomGroup.add(riser);
 
@@ -591,22 +776,45 @@ export class AcceptanceRoom {
     r.arc(64, 64, 52, 0, Math.PI * 2);
     r.stroke();
     const ringTex = this.tex(rc);
-    const defs = [{ x: tx - 0.25, y: this.memorialY + 0.2, z: tz, yaw: Math.PI / 2, size: 0.46 }];
+    const defs = [
+      {
+        x: tx - 0.25,
+        y: this.memorialY + 0.2,
+        z: tz,
+        yaw: Math.PI / 2,
+        size: 0.46,
+      },
+    ];
     this.frontSlots(this.memories.length - 1).forEach(([dx, dz]) => {
-      defs.push({ x: tx + dx, y: this.memorialY, z: tz + dz, yaw: Math.PI / 2 + 0.25 * Math.sign(dz), size: 0.38 });
+      defs.push({
+        x: tx + dx,
+        y: this.memorialY,
+        z: tz + dz,
+        yaw: Math.PI / 2 + 0.25 * Math.sign(dz),
+        size: 0.38,
+      });
     });
     defs.slice(0, this.memories.length).forEach((d) => {
       const pos = new THREE.Vector3(d.x, d.y, d.z);
       const ring = new THREE.Mesh(
         new THREE.PlaneGeometry(d.size, d.size),
-        new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, opacity: 0.45, depthWrite: false }),
+        new THREE.MeshBasicMaterial({
+          map: ringTex,
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false,
+        }),
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.copy(pos).setY(d.y + 0.002);
       const glow = this.glowSprite(0xffe2a0, 0.9, 0);
       glow.position.copy(pos).setY(d.y + 0.25);
       const slot = { pos, yaw: d.yaw, filled: false, ring, glow, hit: null };
-      slot.hit = this.hitBox(0.38, 0.7, 0.38, pos.x, pos.y + 0.3, pos.z, { id: "memory_slot", prompt: "Interactuar", slot });
+      slot.hit = this.hitBox(0.38, 0.7, 0.38, pos.x, pos.y + 0.3, pos.z, {
+        id: "memory_slot",
+        prompt: "Interactuar",
+        slot,
+      });
       this.roomGroup.add(ring, glow, slot.hit);
       this.addHit(slot.hit);
       this.slots.push(slot);
@@ -616,12 +824,23 @@ export class AcceptanceRoom {
     const brass = this.std(0xc9a24a, { metalness: 0.6, roughness: 0.35 });
     const wax = this.std(0xf3ead2, { roughness: 0.6 });
     this.candles = [];
-    [[-0.45, -1.12, 0.3], [-0.45, 1.12, 0.3], [0.05, -1.12, 0.2], [0.05, 1.12, 0.2]].forEach(([dx, dz, h], i) => {
+    [
+      [-0.45, -1.12, 0.3],
+      [-0.45, 1.12, 0.3],
+      [0.05, -1.12, 0.2],
+      [0.05, 1.12, 0.2],
+    ].forEach(([dx, dz, h], i) => {
       const g = new THREE.Group();
       g.position.set(tx + dx, this.memorialY, tz + dz);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.025, 12), brass);
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.075, 0.025, 12),
+        brass,
+      );
       base.position.y = 0.0125;
-      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, h, 12), wax);
+      const stick = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.03, h, 12),
+        wax,
+      );
       stick.position.y = 0.025 + h / 2;
       const flame = this.glowSprite(0xffd890, 0.22, 0);
       flame.position.y = 0.025 + h + 0.07;
@@ -640,12 +859,23 @@ export class AcceptanceRoom {
     this.cardTex = this.tex(this.cardCanvas);
     this.paintCard("");
     this.cardMat = new THREE.MeshStandardMaterial({
-      map: this.cardTex, color: 0xd9d1bd, roughness: 0.95, emissive: 0xffe2a0, emissiveIntensity: 0, emissiveMap: this.cardTex,
+      map: this.cardTex,
+      color: 0xd9d1bd,
+      roughness: 0.95,
+      emissive: 0xffe2a0,
+      emissiveIntensity: 0,
+      emissiveMap: this.cardTex,
     });
-    const card = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.32), this.cardMat);
+    const card = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.24, 0.32),
+      this.cardMat,
+    );
     card.position.set(0, 0.2, 0);
     card.rotation.x = -0.25;
-    const cardHit = this.hitBox(0.3, 0.42, 0.25, 0, 0.22, 0.04, { id: "memory_card", prompt: "Interactuar" });
+    const cardHit = this.hitBox(0.3, 0.42, 0.25, 0, 0.22, 0.04, {
+      id: "memory_card",
+      prompt: "Interactuar",
+    });
     stand.add(base, card, cardHit);
     // El brillo queda detrás de la tarjeta para no tapar lo que se escribe
     this.cardGlow = this.glowSprite(0xffe2a0, 0.6, 0);
@@ -666,8 +896,12 @@ export class AcceptanceRoom {
   }
 
   updateCandleTargets() {
-    const lit = Math.round((this.candles.length * this.placed) / this.items.length);
-    this.candles.forEach((c, i) => { c.lit = i < lit; });
+    const lit = Math.round(
+      (this.candles.length * this.placed) / this.items.length,
+    );
+    this.candles.forEach((c, i) => {
+      c.lit = i < lit;
+    });
   }
 
   paintCard(text) {
@@ -685,7 +919,8 @@ export class AcceptanceRoom {
     if (text) {
       c.fillStyle = "#2b2118";
       c.font = '38px "Special Elite", "Courier New", monospace';
-      let line = "", y = 136;
+      let line = "",
+        y = 136;
       text.split(/\s+/).forEach((w) => {
         const t = line ? line + " " + w : w;
         if (c.measureText(t).width > 424 && line) {
@@ -702,14 +937,21 @@ export class AcceptanceRoom {
   /* ---------- Reloj (mismo de las otras salas, con la dalia de vuelta en el vidrio) ---------- */
   buildClock(R) {
     const group = new THREE.Group();
-    const add = (m) => { group.add(m); return m; };
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.07, R + 0.07, 0.12, 96), this.std(0x4a2f22, { roughness: 0.5 }));
+    const add = (m) => {
+      group.add(m);
+      return m;
+    };
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(R + 0.07, R + 0.07, 0.12, 96),
+      this.std(0x4a2f22, { roughness: 0.5 }),
+    );
     body.rotation.x = Math.PI / 2;
     body.position.z = 0.06;
     add(body);
 
     // Cara
-    const S = 1024, c0 = S / 2;
+    const S = 1024,
+      c0 = S / 2;
     const fc = canvasOf(S, S);
     const f = fc.getContext("2d");
     const g = f.createRadialGradient(c0, c0, 0, c0, c0, c0);
@@ -720,30 +962,52 @@ export class AcceptanceRoom {
     f.fillRect(0, 0, S, S);
     f.strokeStyle = "rgba(60,150,150,0.3)";
     f.lineWidth = 3;
-    f.beginPath(); f.arc(c0, c0, c0 * 0.94, 0, Math.PI * 2); f.stroke();
+    f.beginPath();
+    f.arc(c0, c0, c0 * 0.94, 0, Math.PI * 2);
+    f.stroke();
     f.translate(c0, c0);
     f.lineCap = "round";
     for (let i = 0; i < 60; i++) {
       f.save();
       f.rotate((i / 60) * Math.PI * 2);
-      const hour = i % 5 === 0, card = i % 15 === 0;
-      f.strokeStyle = i === 0 ? "#e2704f" : hour ? "#f3dccd" : "rgba(243,220,205,0.4)";
+      const hour = i % 5 === 0,
+        card = i % 15 === 0;
+      f.strokeStyle =
+        i === 0 ? "#e2704f" : hour ? "#f3dccd" : "rgba(243,220,205,0.4)";
       f.lineWidth = card ? 20 : hour ? 13 : 4;
-      const r1 = c0 * 0.9, r2 = r1 - (card ? 100 : hour ? 70 : 20);
-      f.beginPath(); f.moveTo(0, -r1); f.lineTo(0, -r2); f.stroke();
+      const r1 = c0 * 0.9,
+        r2 = r1 - (card ? 100 : hour ? 70 : 20);
+      f.beginPath();
+      f.moveTo(0, -r1);
+      f.lineTo(0, -r2);
+      f.stroke();
       f.restore();
     }
-    const face = new THREE.Mesh(new THREE.CircleGeometry(R, 96), new THREE.MeshBasicMaterial({ map: this.tex(fc) }));
+    const face = new THREE.Mesh(
+      new THREE.CircleGeometry(R, 96),
+      new THREE.MeshBasicMaterial({ map: this.tex(fc) }),
+    );
     face.position.z = 0.122;
     add(face);
-    const bezel = new THREE.Mesh(new THREE.TorusGeometry(R + 0.035, 0.035, 16, 96), this.std(0x1c2b2d, { metalness: 0.6, roughness: 0.35 }));
+    const bezel = new THREE.Mesh(
+      new THREE.TorusGeometry(R + 0.035, 0.035, 16, 96),
+      this.std(0x1c2b2d, { metalness: 0.6, roughness: 0.35 }),
+    );
     bezel.position.z = 0.125;
     add(bezel);
 
     const makeHand = (len, w, tail, mat, depth, z) => {
       const s = new THREE.Shape();
-      s.moveTo(-w / 2, -tail); s.lineTo(w / 2, -tail); s.lineTo(w / 2, len * 0.88); s.lineTo(0, len); s.lineTo(-w / 2, len * 0.88); s.closePath();
-      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }), mat);
+      s.moveTo(-w / 2, -tail);
+      s.lineTo(w / 2, -tail);
+      s.lineTo(w / 2, len * 0.88);
+      s.lineTo(0, len);
+      s.lineTo(-w / 2, len * 0.88);
+      s.closePath();
+      const m = new THREE.Mesh(
+        new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }),
+        mat,
+      );
       m.position.z = z;
       return add(m);
     };
@@ -758,19 +1022,33 @@ export class AcceptanceRoom {
     // Vidrio con la dalia (la del reloj de la Negación)
     const gc = canvasOf(S, S);
     const gx = gc.getContext("2d");
-    gx.beginPath(); gx.arc(c0, c0, c0, 0, Math.PI * 2); gx.clip();
+    gx.beginPath();
+    gx.arc(c0, c0, c0, 0, Math.PI * 2);
+    gx.clip();
     gx.save();
     gx.filter = "blur(7px)";
     drawDahlia(gx, S * 0.88, S * 0.48, S * 0.11, 0.5);
-    gx.globalAlpha = 0.4; gx.strokeStyle = "#3f7a4c"; gx.lineWidth = 7;
-    gx.beginPath(); gx.moveTo(S * 0.88, S * 0.59); gx.quadraticCurveTo(S * 0.86, S * 0.7, S * 0.83, S * 0.82); gx.stroke();
+    gx.globalAlpha = 0.4;
+    gx.strokeStyle = "#3f7a4c";
+    gx.lineWidth = 7;
+    gx.beginPath();
+    gx.moveTo(S * 0.88, S * 0.59);
+    gx.quadraticCurveTo(S * 0.86, S * 0.7, S * 0.83, S * 0.82);
+    gx.stroke();
     gx.restore();
     const gl = gx.createLinearGradient(0, 0, S, S);
     gl.addColorStop(0, "rgba(160,230,225,0.10)");
     gl.addColorStop(0.35, "rgba(160,230,225,0)");
     gx.fillStyle = gl;
     gx.fillRect(0, 0, S, S);
-    const glass = new THREE.Mesh(new THREE.CircleGeometry(R + 0.01, 64), new THREE.MeshBasicMaterial({ map: this.tex(gc), transparent: true, depthWrite: false }));
+    const glass = new THREE.Mesh(
+      new THREE.CircleGeometry(R + 0.01, 64),
+      new THREE.MeshBasicMaterial({
+        map: this.tex(gc),
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
     glass.position.z = 0.175;
     add(glass);
 
@@ -801,62 +1079,176 @@ export class AcceptanceRoom {
   /* ---------- Objetos del recorrido, esparcidos por el jardín ---------- */
   itemModel(id) {
     const g = new THREE.Group();
-    const m = (mesh, x, y, z) => { mesh.position.set(x, y, z); g.add(mesh); return mesh; };
+    const m = (mesh, x, y, z) => {
+      mesh.position.set(x, y, z);
+      g.add(mesh);
+      return mesh;
+    };
     if (id === "vase") {
       // El florero con flores de la Negación
       const vase = new THREE.Mesh(
-        new THREE.LatheGeometry(profile([[0.001, 0], [0.05, 0], [0.065, 0.03], [0.1, 0.11], [0.11, 0.18], [0.08, 0.26], [0.05, 0.3], [0.045, 0.34], [0.06, 0.37], [0.05, 0.37], [0.04, 0.34]]), 20),
+        new THREE.LatheGeometry(
+          profile([
+            [0.001, 0],
+            [0.05, 0],
+            [0.065, 0.03],
+            [0.1, 0.11],
+            [0.11, 0.18],
+            [0.08, 0.26],
+            [0.05, 0.3],
+            [0.045, 0.34],
+            [0.06, 0.37],
+            [0.05, 0.37],
+            [0.04, 0.34],
+          ]),
+          20,
+        ),
         this.std(0xd9ccb9, { roughness: 0.4, side: THREE.DoubleSide }),
       );
       m(vase, 0, 0, 0);
       const stem = this.std(0x4f8a4c);
-      [[-0.04, 0.2, -0.3, 0xf2c14e], [0.03, 0.26, 0.2, 0xe8805f], [0.0, 0.3, 0.0, 0xf4efe6], [0.05, 0.22, 0.45, 0xe9a0b4], [-0.05, 0.25, -0.5, 0xd9b45b]].forEach(([x, h, tilt, col]) => {
-        const s = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, h, 4).translate(0, h / 2, 0), stem);
+      [
+        [-0.04, 0.2, -0.3, 0xf2c14e],
+        [0.03, 0.26, 0.2, 0xe8805f],
+        [0.0, 0.3, 0.0, 0xf4efe6],
+        [0.05, 0.22, 0.45, 0xe9a0b4],
+        [-0.05, 0.25, -0.5, 0xd9b45b],
+      ].forEach(([x, h, tilt, col]) => {
+        const s = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.004, 0.004, h, 4).translate(0, h / 2, 0),
+          stem,
+        );
         s.position.set(x * 0.4, 0.34, 0);
         s.rotation.z = tilt;
         g.add(s);
-        const top = new THREE.Vector3(0, h, 0).applyEuler(s.rotation).add(s.position);
-        m(new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 6), new THREE.MeshBasicMaterial({ color: col })), top.x, top.y, top.z);
+        const top = new THREE.Vector3(0, h, 0)
+          .applyEuler(s.rotation)
+          .add(s.position);
+        m(
+          new THREE.Mesh(
+            new THREE.SphereGeometry(0.036, 8, 6),
+            new THREE.MeshBasicMaterial({ color: col }),
+          ),
+          top.x,
+          top.y,
+          top.z,
+        );
       });
     } else if (id === "photo") {
       // El portarretratos cálido de la Ira (las dos siluetas)
       const wood = this.std(0x7a4a24);
-      const frame = m(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.34, 0.03), wood), 0, 0.2, 0);
+      const frame = m(
+        new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.34, 0.03), wood),
+        0,
+        0.2,
+        0,
+      );
       frame.rotation.x = -0.12;
       const pc = canvasOf(128, 170);
       const p = pc.getContext("2d");
       const pg = p.createLinearGradient(0, 0, 0, 170);
-      pg.addColorStop(0, "#f0c98a"); pg.addColorStop(1, "#a8693a");
-      p.fillStyle = pg; p.fillRect(0, 0, 128, 170);
+      pg.addColorStop(0, "#f0c98a");
+      pg.addColorStop(1, "#a8693a");
+      p.fillStyle = pg;
+      p.fillRect(0, 0, 128, 170);
       p.fillStyle = "rgba(70,35,15,0.85)";
-      [[50, 65, 0.5], [85, 72, 0.45]].forEach(([cx, cy, s]) => {
-        p.beginPath(); p.arc(cx, cy, 34 * s, 0, Math.PI * 2); p.fill();
-        p.beginPath(); p.ellipse(cx, cy + 110 * s, 70 * s, 80 * s, 0, Math.PI, Math.PI * 2); p.fill();
+      [
+        [50, 65, 0.5],
+        [85, 72, 0.45],
+      ].forEach(([cx, cy, s]) => {
+        p.beginPath();
+        p.arc(cx, cy, 34 * s, 0, Math.PI * 2);
+        p.fill();
+        p.beginPath();
+        p.ellipse(cx, cy + 110 * s, 70 * s, 80 * s, 0, Math.PI, Math.PI * 2);
+        p.fill();
       });
-      const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.28), new THREE.MeshBasicMaterial({ map: this.tex(pc) }));
+      const pic = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.21, 0.28),
+        new THREE.MeshBasicMaterial({ map: this.tex(pc) }),
+      );
       pic.position.set(0, 0.2, 0.017);
       pic.rotation.x = -0.12;
       g.add(pic);
-      m(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.02), wood), 0, 0.1, -0.06).rotation.x = 0.5;
+      m(
+        new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.02), wood),
+        0,
+        0.1,
+        -0.06,
+      ).rotation.x = 0.5;
     } else if (id === "key") {
       // La llave de la Negociación: apoyada de costado, en diagonal
       const brass = this.std(0xc9a24a, { metalness: 0.6, roughness: 0.35 });
       const pivot = new THREE.Group();
       pivot.position.y = 0.02;
       pivot.rotation.set(-Math.PI / 2, 0, 0.7);
-      const part = (mesh, x, y) => { mesh.position.set(x, y, 0); pivot.add(mesh); };
-      part(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 8, 20), brass), 0, 0.28);
-      part(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 8), brass), 0, 0.11);
-      part(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.025, 0.02), brass), 0.035, 0.03);
-      part(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.02), brass), 0.025, 0.07);
+      const part = (mesh, x, y) => {
+        mesh.position.set(x, y, 0);
+        pivot.add(mesh);
+      };
+      part(
+        new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 8, 20), brass),
+        0,
+        0.28,
+      );
+      part(
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(0.012, 0.012, 0.24, 8),
+          brass,
+        ),
+        0,
+        0.11,
+      );
+      part(
+        new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.025, 0.02), brass),
+        0.035,
+        0.03,
+      );
+      part(
+        new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.02), brass),
+        0.025,
+        0.07,
+      );
       g.add(pivot);
     } else {
       // Un farol chico: la luz de la Depresión
       const metal = this.std(0x27324a, { metalness: 0.2, roughness: 0.55 });
-      m(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 4).rotateY(Math.PI / 4), metal), 0, 0.02, 0);
-      m(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.2, 4).rotateY(Math.PI / 4), new THREE.MeshBasicMaterial({ color: 0xffd9a0 })), 0, 0.14, 0);
-      m(new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.1, 4).rotateY(Math.PI / 4), metal), 0, 0.29, 0);
-      const handle = m(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.007, 6, 16, Math.PI), metal), 0, 0.33, 0);
+      m(
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(0.1, 0.12, 0.04, 4).rotateY(Math.PI / 4),
+          metal,
+        ),
+        0,
+        0.02,
+        0,
+      );
+      m(
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(0.1, 0.07, 0.2, 4).rotateY(Math.PI / 4),
+          new THREE.MeshBasicMaterial({ color: 0xffd9a0 }),
+        ),
+        0,
+        0.14,
+        0,
+      );
+      m(
+        new THREE.Mesh(
+          new THREE.ConeGeometry(0.14, 0.1, 4).rotateY(Math.PI / 4),
+          metal,
+        ),
+        0,
+        0.29,
+        0,
+      );
+      const handle = m(
+        new THREE.Mesh(
+          new THREE.TorusGeometry(0.07, 0.007, 6, 16, Math.PI),
+          metal,
+        ),
+        0,
+        0.33,
+        0,
+      );
       handle.rotation.z = 0;
     }
     return g;
@@ -866,15 +1258,29 @@ export class AcceptanceRoom {
     const stone = this.std(0xb9b09a, { roughness: 0.9 });
     this.memories.forEach((id, i) => {
       const [sx, sz] = CFG.spots[i % CFG.spots.length];
-      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.5, 14), stone);
+      const stool = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.26, 0.5, 14),
+        stone,
+      );
       stool.position.set(sx, 0.25, sz);
       this.roomGroup.add(stool);
       this.colliders.push({ x: sx, z: sz, r: 0.3 });
 
       const group = this.itemModel(id);
       group.position.set(sx, 0.5, sz);
-      const item = { id, group, home: group.position.clone(), placed: false, hit: null, glow: null };
-      item.hit = this.hitBox(0.5, 0.6, 0.5, 0, 0.3, 0, { id: "memory_item", prompt: "Tomar", item });
+      const item = {
+        id,
+        group,
+        home: group.position.clone(),
+        placed: false,
+        hit: null,
+        glow: null,
+      };
+      item.hit = this.hitBox(0.5, 0.6, 0.5, 0, 0.3, 0, {
+        id: "memory_item",
+        prompt: "Tomar",
+        item,
+      });
       group.add(item.hit);
       item.glow = this.glowSprite(0xffe2a0, 1.3, 0.55);
       item.glow.position.set(sx, 0.95, sz);
@@ -888,20 +1294,41 @@ export class AcceptanceRoom {
   buildPotAndPlant() {
     const { x: px, z: pz } = CFG.pot;
     const stone = this.std(0xb9b09a, { roughness: 0.9 });
-    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.55, 16), stone);
+    const ped = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.32, 0.38, 0.55, 16),
+      stone,
+    );
     ped.position.set(px, 0.275, pz);
     const pot = new THREE.Mesh(
-      new THREE.LatheGeometry(profile([[0.001, 0], [0.14, 0], [0.19, 0.05], [0.24, 0.34], [0.27, 0.37], [0.27, 0.4], [0.23, 0.4], [0.22, 0.36]]), 24),
+      new THREE.LatheGeometry(
+        profile([
+          [0.001, 0],
+          [0.14, 0],
+          [0.19, 0.05],
+          [0.24, 0.34],
+          [0.27, 0.37],
+          [0.27, 0.4],
+          [0.23, 0.4],
+          [0.22, 0.36],
+        ]),
+        24,
+      ),
       this.std(0xb4673f, { roughness: 0.8, side: THREE.DoubleSide }),
     );
     pot.position.set(px, 0.55, pz);
     this.soilMat = this.std(0x6a4a34, { roughness: 1 });
-    const soil = new THREE.Mesh(new THREE.CircleGeometry(0.225, 20), this.soilMat);
+    const soil = new THREE.Mesh(
+      new THREE.CircleGeometry(0.225, 20),
+      this.soilMat,
+    );
     soil.rotation.x = -Math.PI / 2;
     soil.position.set(px, 0.55 + 0.37, pz);
     this.soilY = 0.55 + 0.37;
     this.potPos = new THREE.Vector3(px, this.soilY, pz);
-    const potHit = this.hitBox(0.7, 0.9, 0.7, px, 1.2, pz, { id: "pot", prompt: "Interactuar" });
+    const potHit = this.hitBox(0.7, 0.9, 0.7, px, 1.2, pz, {
+      id: "pot",
+      prompt: "Interactuar",
+    });
     this.potHit = potHit;
     this.roomGroup.add(ped, pot, soil, potHit);
     this.addHit(potHit);
@@ -909,34 +1336,75 @@ export class AcceptanceRoom {
 
     // Semilla (aparece en el plato del memorial cuando está completo)
     const seed = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshBasicMaterial({ color: 0xf2c14e }));
+    const body = new THREE.Mesh(
+      new THREE.SphereGeometry(0.035, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xf2c14e }),
+    );
     body.scale.set(1, 0.7, 0.7);
     seed.add(body);
     const sGlow = this.glowSprite(0xffe2a0, 0.5, 0.8);
     seed.add(sGlow);
     seed.position.copy(this.dishPos);
     seed.visible = false;
-    this.seed = { group: seed, glow: sGlow, hit: this.hitBox(0.3, 0.3, 0.3, 0, 0, 0, { id: "seed_obj", prompt: "Tomar" }) };
+    this.seed = {
+      group: seed,
+      glow: sGlow,
+      hit: this.hitBox(0.3, 0.3, 0.3, 0, 0, 0, {
+        id: "seed_obj",
+        prompt: "Tomar",
+      }),
+    };
     seed.add(this.seed.hit);
     this.roomGroup.add(seed);
 
     // Jarra de barro sobre un banquito, junto a la maceta
     const jug = new THREE.Group();
     const clay = this.std(0xb4673f, { roughness: 0.8, side: THREE.DoubleSide });
-    jug.add(new THREE.Mesh(new THREE.LatheGeometry(profile([[0.001, 0], [0.07, 0], [0.1, 0.06], [0.1, 0.16], [0.06, 0.24], [0.05, 0.28], [0.07, 0.3], [0.045, 0.3], [0.04, 0.26]]), 18), clay));
-    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.1, 8), clay);
+    jug.add(
+      new THREE.Mesh(
+        new THREE.LatheGeometry(
+          profile([
+            [0.001, 0],
+            [0.07, 0],
+            [0.1, 0.06],
+            [0.1, 0.16],
+            [0.06, 0.24],
+            [0.05, 0.28],
+            [0.07, 0.3],
+            [0.045, 0.3],
+            [0.04, 0.26],
+          ]),
+          18,
+        ),
+        clay,
+      ),
+    );
+    const spout = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.035, 0.1, 8),
+      clay,
+    );
     spout.position.set(-0.1, 0.25, 0);
     spout.rotation.z = 0.9;
     jug.add(spout);
-    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 14, Math.PI), clay);
+    const handle = new THREE.Mesh(
+      new THREE.TorusGeometry(0.06, 0.012, 6, 14, Math.PI),
+      clay,
+    );
     handle.position.set(0.09, 0.17, 0);
     handle.rotation.z = -Math.PI / 2;
     jug.add(handle);
-    const stoolX = px + 1.25, stoolZ = pz - 0.9;
-    const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.45, 14), stone);
+    const stoolX = px + 1.25,
+      stoolZ = pz - 0.9;
+    const stool = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.24, 0.45, 14),
+      stone,
+    );
     stool.position.set(stoolX, 0.225, stoolZ);
     jug.position.set(stoolX, 0.45, stoolZ);
-    const jugHit = this.hitBox(0.5, 0.5, 0.5, 0, 0.18, 0, { id: "jug", prompt: "Tomar" });
+    const jugHit = this.hitBox(0.5, 0.5, 0.5, 0, 0.18, 0, {
+      id: "jug",
+      prompt: "Tomar",
+    });
     jug.add(jugHit);
     this.jug = { group: jug, home: jug.position.clone(), hit: jugHit };
     this.roomGroup.add(stool, jug);
@@ -946,8 +1414,14 @@ export class AcceptanceRoom {
     // Planta
     const plant = new THREE.Group();
     plant.position.copy(this.potPos);
-    const green = this.std(0x5f9a5a, { roughness: 0.7, side: THREE.DoubleSide });
-    this.stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.022, 1, 6).translate(0, 0.5, 0), green);
+    const green = this.std(0x5f9a5a, {
+      roughness: 0.7,
+      side: THREE.DoubleSide,
+    });
+    this.stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.022, 1, 6).translate(0, 0.5, 0),
+      green,
+    );
     this.stem.scale.set(1, 0.001, 1);
     plant.add(this.stem);
 
@@ -957,7 +1431,14 @@ export class AcceptanceRoom {
     leafShape.bezierCurveTo(-0.1, 0.2, -0.09, 0.05, 0, 0);
     const leafGeo = new THREE.ShapeGeometry(leafShape);
     this.leaves = [];
-    [[0.2, 0.9], [0.34, 0.95], [0.5, 0.85], [0.64, 0.75], [0.78, 0.6], [0.9, 0.5]].forEach(([frac, size], i) => {
+    [
+      [0.2, 0.9],
+      [0.34, 0.95],
+      [0.5, 0.85],
+      [0.64, 0.75],
+      [0.78, 0.6],
+      [0.9, 0.5],
+    ].forEach(([frac, size], i) => {
       const pivot = new THREE.Group();
       pivot.rotation.y = i * 1.9;
       const lf = new THREE.Mesh(leafGeo, green);
@@ -968,7 +1449,10 @@ export class AcceptanceRoom {
       this.leaves.push({ pivot, frac, size, appear: 0.03 + i * 0.1 });
     });
 
-    this.bud = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), this.std(0x8fb870));
+    this.bud = new THREE.Mesh(
+      new THREE.SphereGeometry(0.045, 10, 8),
+      this.std(0x8fb870),
+    );
     this.bud.scale.setScalar(0.001);
     plant.add(this.bud);
 
@@ -976,7 +1460,12 @@ export class AcceptanceRoom {
     drawDahlia(fc.getContext("2d"), 256, 256, 235, 1);
     this.flower = new THREE.Mesh(
       new THREE.PlaneGeometry(0.46, 0.46),
-      new THREE.MeshBasicMaterial({ map: this.tex(fc), transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({
+        map: this.tex(fc),
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     );
     this.flower.scale.setScalar(0.001);
     plant.add(this.flower);
@@ -990,16 +1479,29 @@ export class AcceptanceRoom {
 
   /* ---------- Polvo dorado en los haces y luciérnagas alrededor de la planta ---------- */
   makeMotes(count, box, size, center) {
-    const pos = new Float32Array(count * 3), seed = new Float32Array(count);
+    const pos = new Float32Array(count * 3),
+      seed = new Float32Array(count);
     for (let i = 0; i < count; i++) {
-      pos.set([center.x + rnd(-box.x, box.x), rnd(0, box.y), center.z + rnd(-box.z, box.z)], i * 3);
+      pos.set(
+        [
+          center.x + rnd(-box.x, box.x),
+          rnd(0, box.y),
+          center.z + rnd(-box.z, box.z),
+        ],
+        i * 3,
+      );
       seed[i] = Math.random();
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     geo.setAttribute("aSeed", new THREE.BufferAttribute(seed, 1));
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uAlpha: { value: 0.3 }, uSize: { value: size }, uH: { value: box.y } },
+      uniforms: {
+        uTime: { value: 0 },
+        uAlpha: { value: 0.3 },
+        uSize: { value: size },
+        uH: { value: box.y },
+      },
       vertexShader: `
         uniform float uTime; uniform float uSize; uniform float uH;
         attribute float aSeed; varying float vA;
@@ -1019,7 +1521,9 @@ export class AcceptanceRoom {
           float d = length(gl_PointCoord - 0.5);
           gl_FragColor = vec4(1.0, 0.92, 0.7, smoothstep(0.5, 0.0, d) * vA * uAlpha);
         }`,
-      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     const pts = new THREE.Points(geo, mat);
     pts.frustumCulled = false;
@@ -1028,17 +1532,37 @@ export class AcceptanceRoom {
   }
 
   buildAtmosphereFx() {
-    this.dustMat = this.makeMotes(260, { x: 7, y: 5, z: 10 }, 5, new THREE.Vector3(0, 0, -19));
-    this.fireflyMat = this.makeMotes(45, { x: 1.1, y: 1.8, z: 1.1 }, 6, new THREE.Vector3(CFG.pot.x, 0.9, CFG.pot.z));
+    this.dustMat = this.makeMotes(
+      260,
+      { x: 7, y: 5, z: 10 },
+      5,
+      new THREE.Vector3(0, 0, -19),
+    );
+    this.fireflyMat = this.makeMotes(
+      45,
+      { x: 1.1, y: 1.8, z: 1.1 },
+      6,
+      new THREE.Vector3(CFG.pot.x, 0.9, CFG.pot.z),
+    );
     this.fireflyMat.uniforms.uAlpha.value = 0;
 
     // Chorro de agua de la jarra
     const n = 40;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    geo.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(n * 3), 3),
+    );
     this.stream = new THREE.Points(
       geo,
-      new THREE.PointsMaterial({ color: 0xcfe6ff, size: 0.035, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }),
+      new THREE.PointsMaterial({
+        color: 0xcfe6ff,
+        size: 0.035,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     );
     this.stream.visible = false;
     this.stream.frustumCulled = false;
@@ -1089,17 +1613,22 @@ export class AcceptanceRoom {
     group.scale.setScalar(scale);
   }
   flyTo(group, from, to, dur, arc, done, yawTo = null) {
-    this.tween(dur, (p) => {
-      const e = this.ease(p);
-      group.position.lerpVectors(from, to, e);
-      group.position.y += arc * Math.sin(Math.PI * e);
-      if (yawTo !== null) group.rotation.y = yawTo * e;
-    }, done);
+    this.tween(
+      dur,
+      (p) => {
+        const e = this.ease(p);
+        group.position.lerpVectors(from, to, e);
+        group.position.y += arc * Math.sin(Math.PI * e);
+        if (yawTo !== null) group.rotation.y = yawTo * e;
+      },
+      done,
+    );
   }
 
   interact(object, uiPromptCallback) {
     const id = object.userData.id;
-    if (id === "lockedDoor_acceptance") uiPromptCallback("No hace falta volver atras para recordar.");
+    if (id === "lockedDoor_acceptance")
+      uiPromptCallback("No hace falta volver atras para recordar.");
     else if (id === "finalDoor_acceptance") this.useExitDoor();
     else if (id === "memory_item") this.pickItem(object.userData.item);
     else if (id === "memory_slot") this.useSlot(object.userData.slot);
@@ -1110,7 +1639,10 @@ export class AcceptanceRoom {
   }
 
   pickItem(item) {
-    if (this.carrying || item.placed) { this.audio?.playSoft?.(330); return; }
+    if (this.carrying || item.placed) {
+      this.audio?.playSoft?.(330);
+      return;
+    }
     this.carrying = { type: "item", item };
     this.removeHit(item.hit);
     item.glow.visible = false;
@@ -1130,15 +1662,28 @@ export class AcceptanceRoom {
     item.placed = true;
     this.removeHit(slot.hit);
     const from = this.releaseToRoom(item.group);
-    this.flyTo(item.group, from, slot.pos.clone(), 0.7, 0.25, () => {
-      slot.glow.material.opacity = 0.7;
-      slot.ring.material.opacity = 0.9;
-    }, slot.yaw); // queda de frente a la sala
+    this.flyTo(
+      item.group,
+      from,
+      slot.pos.clone(),
+      0.7,
+      0.25,
+      () => {
+        slot.glow.material.opacity = 0.7;
+        slot.ring.material.opacity = 0.9;
+      },
+      slot.yaw,
+    ); // queda de frente a la sala
     this.audio?.playSoft?.(659);
     this.audio?.addHarmonyVoice?.(CFG.chord[this.placed % CFG.chord.length]);
     this.placed++;
     this.updateCandleTargets();
-    if (this.placed >= this.items.length) this.tween(1.4, () => {}, () => this.revealSeed()); // pausa corta, en tiempo de juego
+    if (this.placed >= this.items.length)
+      this.tween(
+        1.4,
+        () => {},
+        () => this.revealSeed(),
+      ); // pausa corta, en tiempo de juego
   }
 
   revealSeed() {
@@ -1149,7 +1694,10 @@ export class AcceptanceRoom {
   }
 
   pickSeed() {
-    if (this.carrying) { this.audio?.playSoft?.(330); return; }
+    if (this.carrying) {
+      this.audio?.playSoft?.(330);
+      return;
+    }
     this.carrying = { type: "seed" };
     this.removeHit(this.seed.hit);
     this.takeInHand(this.seed.group, 1.4);
@@ -1157,7 +1705,10 @@ export class AcceptanceRoom {
   }
 
   pickJug() {
-    if (this.carrying) { this.audio?.playSoft?.(330); return; }
+    if (this.carrying) {
+      this.audio?.playSoft?.(330);
+      return;
+    }
     this.carrying = { type: "jug" };
     this.removeHit(this.jug.hit);
     this.takeInHand(this.jug.group, 0.8, -0.6); // el pico apunta hacia adelante y a la izquierda
@@ -1172,7 +1723,13 @@ export class AcceptanceRoom {
       const from = this.releaseToRoom(g);
       const to = this.potPos.clone().setY(this.soilY + 0.03);
       this.flyTo(g, from, to, 0.8, 0.2, () => {
-        this.tween(0.8, (p) => g.scale.setScalar(1 - p), () => { g.visible = false; });
+        this.tween(
+          0.8,
+          (p) => g.scale.setScalar(1 - p),
+          () => {
+            g.visible = false;
+          },
+        );
         this.audio?.playEarth?.();
         this.pot.seed = true;
         this.maybeStartGrowing();
@@ -1190,35 +1747,44 @@ export class AcceptanceRoom {
     const g = this.jug.group;
     const from = this.releaseToRoom(g);
     const pour = this.potPos.clone().add(new THREE.Vector3(0.35, 0.55, 0));
-    const dry = new THREE.Color(0x6a4a34), wet = new THREE.Color(0x2e2118);
+    const dry = new THREE.Color(0x6a4a34),
+      wet = new THREE.Color(0x2e2118);
     this.flyTo(g, from, pour, 0.8, 0.1, () => {
       this.audio?.playWater?.();
       this.stream.visible = true;
-      this.tween(2.0, (p) => {
-        g.rotation.z = Math.min(0.9, p * 4) * 0.9;
-        const start = pour.clone().add(new THREE.Vector3(-0.2, -0.05, 0));
-        const arr = this.stream.geometry.attributes.position.array;
-        for (let i = 0; i < this.streamN; i++) {
-          const q = (((p * 3 + i / this.streamN) % 1) + 1) % 1;
-          arr[i * 3] = THREE.MathUtils.lerp(start.x, this.potPos.x, q);
-          arr[i * 3 + 1] = THREE.MathUtils.lerp(start.y, this.soilY, q * q);
-          arr[i * 3 + 2] = start.z + Math.sin(i * 12.9) * 0.02;
-        }
-        this.stream.geometry.attributes.position.needsUpdate = true;
-        this.soilMat.color.copy(dry).lerp(wet, p);
-      }, () => {
-        this.stream.visible = false;
-        this.pot.wet = true;
-        this.maybeStartGrowing();
-        const back = g.position.clone();
-        this.tween(0.9, (p) => {
-          g.position.lerpVectors(back, this.jug.home, this.ease(p));
-          g.rotation.z = 0.9 * (1 - p);
-        }, () => {
-          g.rotation.set(0, 0, 0);
-          this.addHit(this.jug.hit);
-        });
-      });
+      this.tween(
+        2.0,
+        (p) => {
+          g.rotation.z = Math.min(0.9, p * 4) * 0.9;
+          const start = pour.clone().add(new THREE.Vector3(-0.2, -0.05, 0));
+          const arr = this.stream.geometry.attributes.position.array;
+          for (let i = 0; i < this.streamN; i++) {
+            const q = (((p * 3 + i / this.streamN) % 1) + 1) % 1;
+            arr[i * 3] = THREE.MathUtils.lerp(start.x, this.potPos.x, q);
+            arr[i * 3 + 1] = THREE.MathUtils.lerp(start.y, this.soilY, q * q);
+            arr[i * 3 + 2] = start.z + Math.sin(i * 12.9) * 0.02;
+          }
+          this.stream.geometry.attributes.position.needsUpdate = true;
+          this.soilMat.color.copy(dry).lerp(wet, p);
+        },
+        () => {
+          this.stream.visible = false;
+          this.pot.wet = true;
+          this.maybeStartGrowing();
+          const back = g.position.clone();
+          this.tween(
+            0.9,
+            (p) => {
+              g.position.lerpVectors(back, this.jug.home, this.ease(p));
+              g.rotation.z = 0.9 * (1 - p);
+            },
+            () => {
+              g.rotation.set(0, 0, 0);
+              this.addHit(this.jug.hit);
+            },
+          );
+        },
+      );
     });
   }
 
@@ -1241,10 +1807,16 @@ export class AcceptanceRoom {
     if (this.exitOpen || this.exitOpening) return;
     this.exitOpening = true;
     this.audio?.playBell?.(523);
-    this.tween(1.8, (p) => {
-      const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-      this.exitPivot.rotation.y = e * (Math.PI / 2.2); // se abre hacia afuera
-    }, () => { this.exitOpen = true; });
+    this.tween(
+      1.8,
+      (p) => {
+        const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        this.exitPivot.rotation.y = e * (Math.PI / 2.2); // se abre hacia afuera
+      },
+      () => {
+        this.exitOpen = true;
+      },
+    );
   }
 
   /* ---------- Tarjeta en blanco: escribir es opcional y no se guarda en ningún lado ---------- */
@@ -1255,21 +1827,26 @@ export class AcceptanceRoom {
 
     const wrap = document.createElement("div");
     wrap.id = "card-editor";
-    wrap.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(30,24,14,.55);z-index:120;";
+    wrap.style.cssText =
+      "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(30,24,14,.55);z-index:120;";
     const card = document.createElement("div");
-    card.style.cssText = 'width:min(360px,86vw);padding:22px;border-radius:6px;background:#f3ead4;color:#3b2f22;box-shadow:0 10px 40px rgba(0,0,0,.4);font-family:"Special Elite","Courier New",monospace;';
+    card.style.cssText =
+      'width:min(360px,86vw);padding:22px;border-radius:6px;background:#f3ead4;color:#3b2f22;box-shadow:0 10px 40px rgba(0,0,0,.4);font-family:"Special Elite","Courier New",monospace;';
     const ta = document.createElement("textarea");
     ta.maxLength = 120;
     ta.rows = 5;
     ta.placeholder = "...";
     ta.value = this.cardText;
-    ta.style.cssText = "width:100%;resize:none;border:0;outline:0;background:repeating-linear-gradient(transparent,transparent 27px,rgba(90,70,40,.25) 28px);font:inherit;font-size:18px;line-height:28px;color:inherit;user-select:text;";
+    ta.style.cssText =
+      "width:100%;resize:none;border:0;outline:0;background:repeating-linear-gradient(transparent,transparent 27px,rgba(90,70,40,.25) 28px);font:inherit;font-size:18px;line-height:28px;color:inherit;user-select:text;";
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;gap:10px;justify-content:flex-end;margin-top:14px;";
+    row.style.cssText =
+      "display:flex;gap:10px;justify-content:flex-end;margin-top:14px;";
     const mkBtn = (label) => {
       const b = document.createElement("button");
       b.textContent = label;
-      b.style.cssText = "background:#d9c9a3;color:#3b2f22;padding:8px 14px;font:inherit;font-size:14px;border:0;border-radius:4px;cursor:pointer;";
+      b.style.cssText =
+        "background:#d9c9a3;color:#3b2f22;padding:8px 14px;font:inherit;font-size:14px;border:0;border-radius:4px;cursor:pointer;";
       return b;
     };
     const blank = mkBtn("Dejar en blanco");
@@ -1294,10 +1871,19 @@ export class AcceptanceRoom {
       this.audio?.playSoft?.(698);
       setTimeout(() => this.extras.setControlsLocked?.(true), 0);
     };
-    save.onclick = (e) => { e.stopPropagation(); close(ta.value.trim()); };
-    blank.onclick = (e) => { e.stopPropagation(); close(""); };
+    save.onclick = (e) => {
+      e.stopPropagation();
+      close(ta.value.trim());
+    };
+    blank.onclick = (e) => {
+      e.stopPropagation();
+      close("");
+    };
     wrap.addEventListener("click", (e) => e.stopPropagation());
-    ta.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") close(this.cardText); });
+    ta.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape") close(this.cardText);
+    });
     ta.addEventListener("keyup", (e) => e.stopPropagation());
   }
 
@@ -1307,8 +1893,10 @@ export class AcceptanceRoom {
   collide(yaw) {
     const ox = this.roomGroup.position.x;
     for (const c of this.colliders) {
-      const dx = yaw.position.x - ox - c.x, dz = yaw.position.z - c.z;
-      const d = Math.hypot(dx, dz), min = c.r + 0.3;
+      const dx = yaw.position.x - ox - c.x,
+        dz = yaw.position.z - c.z;
+      const d = Math.hypot(dx, dz),
+        min = c.r + 0.3;
       if (d < min && d > 0.0001) {
         yaw.position.x = ox + c.x + (dx / d) * min;
         yaw.position.z = c.z + (dz / d) * min;
@@ -1318,14 +1906,17 @@ export class AcceptanceRoom {
 
   updateGrowth(time, dt) {
     const P = this.pot;
-    if (P.growing) P.g = THREE.MathUtils.clamp((time - P.t0) / CFG.growSeconds, 0, 1);
+    if (P.growing)
+      P.g = THREE.MathUtils.clamp((time - P.t0) / CFG.growSeconds, 0, 1);
     const g = P.g;
 
     if (g >= CFG.sproutAt && !this.exitUnlocked) {
       this.exitUnlocked = true; // primer brote: la puerta se destraba (sin cartel, solo luz)
       this.audio?.playBell?.(1046);
     }
-    this.edgeMat.opacity += ((this.exitUnlocked ? 0.75 : 0) - this.edgeMat.opacity) * (1 - Math.exp(-dt * 1.5));
+    this.edgeMat.opacity +=
+      ((this.exitUnlocked ? 0.75 : 0) - this.edgeMat.opacity) *
+      (1 - Math.exp(-dt * 1.5));
 
     // Tallo
     const h = this.stemMaxH * smooth(0.02, 0.85, g);
@@ -1344,12 +1935,20 @@ export class AcceptanceRoom {
     const fl = smooth(0.82, 1.0, g);
     this.flower.scale.setScalar(Math.max(0.001, fl));
     this.flower.position.set(0, h + 0.06, 0.02);
-    this.flower.rotation.y = Math.atan2(this.camLocal.x - this.potPos.x, this.camLocal.z - this.potPos.z);
+    this.flower.rotation.y = Math.atan2(
+      this.camLocal.x - this.potPos.x,
+      this.camLocal.z - this.potPos.z,
+    );
     this.flower.rotation.x = -0.2;
 
     this.plantGlow.position.set(0, h + 0.1, 0);
-    this.plantGlow.material.opacity = 0.65 * smooth(0.25, 1, g) + 0.25 * this.hint;
-    this.plantLight.position.set(this.potPos.x, this.potPos.y + h + 0.4, this.potPos.z);
+    this.plantGlow.material.opacity =
+      0.65 * smooth(0.25, 1, g) + 0.25 * this.hint;
+    this.plantLight.position.set(
+      this.potPos.x,
+      this.potPos.y + h + 0.4,
+      this.potPos.z,
+    );
     this.plantLight.intensity = 2.2 * smooth(0.08, 1, g);
   }
 
@@ -1369,7 +1968,8 @@ export class AcceptanceRoom {
     this.fireflyMat.uniforms.uTime.value = time;
     this.fireflyMat.uniforms.uAlpha.value = 0.9 * smooth(0.3, 1, this.pot.g);
     this.beams.forEach((b) => {
-      b.mesh.material.opacity = (0.22 + 0.36 * hp) * (0.85 + 0.15 * Math.sin(time * 0.6 + b.phase));
+      b.mesh.material.opacity =
+        (0.22 + 0.36 * hp) * (0.85 + 0.15 * Math.sin(time * 0.6 + b.phase));
     });
   }
 
@@ -1377,28 +1977,46 @@ export class AcceptanceRoom {
     const c = this.carrying;
     this.candles.forEach((cd) => {
       cd.level += ((cd.lit ? 1 : 0) - cd.level) * (1 - Math.exp(-dt * 2.5));
-      const flick = 0.78 + 0.18 * Math.sin(time * 9 + cd.phase) + 0.04 * Math.sin(time * 23 + cd.phase);
+      const flick =
+        0.78 +
+        0.18 * Math.sin(time * 9 + cd.phase) +
+        0.04 * Math.sin(time * 23 + cd.phase);
       cd.flame.material.opacity = cd.level * flick;
       cd.flame.scale.setScalar(0.22 * (0.85 + 0.15 * flick));
     });
     // Brillo suave en lo que se puede tomar (más fuerte cuando el jardín "responde")
     this.items.forEach((it, i) => {
       if (!it.placed && it.glow.visible) {
-        it.glow.material.opacity = (0.45 + 0.15 * Math.sin(time * 1.6 + i)) + 0.4 * this.hint;
+        it.glow.material.opacity =
+          0.45 + 0.15 * Math.sin(time * 1.6 + i) + 0.4 * this.hint;
       }
     });
     if (this.seed.group.visible && !c) {
-      this.seed.group.position.y = this.dishPos.y + 0.03 + Math.sin(time * 2) * 0.012;
+      this.seed.group.position.y =
+        this.dishPos.y + 0.03 + Math.sin(time * 2) * 0.012;
     }
     // Lo que lleva en la mano se mece un poco
     if (c) {
-      const g = c.type === "item" ? c.item.group : c.type === "seed" ? this.seed.group : this.jug.group;
+      const g =
+        c.type === "item"
+          ? c.item.group
+          : c.type === "seed"
+            ? this.seed.group
+            : this.jug.group;
       g.position.y = -0.06 + Math.sin(time * 2.2) * 0.008;
       g.rotation.y = this.handYaw + Math.sin(time * 0.9) * 0.1;
     }
     // Textos al apuntar: dependen de lo que lleve
-    this.slots.forEach((s) => { s.hit.userData.prompt = c && c.type === "item" && !s.filled ? "Dejar aquí" : "Interactuar"; });
-    this.potHit.userData.prompt = c && c.type === "seed" ? "Plantar" : c && c.type === "jug" ? "Regar" : "Interactuar";
+    this.slots.forEach((s) => {
+      s.hit.userData.prompt =
+        c && c.type === "item" && !s.filled ? "Dejar aquí" : "Interactuar";
+    });
+    this.potHit.userData.prompt =
+      c && c.type === "seed"
+        ? "Plantar"
+        : c && c.type === "jug"
+          ? "Regar"
+          : "Interactuar";
   }
 
   updateFinale(pz) {
@@ -1420,7 +2038,11 @@ export class AcceptanceRoom {
     let pz = this.lastPz;
     if (this.yaw) {
       this.collide(this.yaw);
-      this.camLocal.set(this.yaw.position.x - this.roomGroup.position.x, 1.6, this.yaw.position.z);
+      this.camLocal.set(
+        this.yaw.position.x - this.roomGroup.position.x,
+        1.6,
+        this.yaw.position.z,
+      );
       pz = this.yaw.position.z;
     }
     this.lastPz = pz;

@@ -39,14 +39,18 @@ export class AudioManager {
   // v entre 0 y 1
   setVolume(v) {
     this.volume = Math.max(0, Math.min(1, Number(v) || 0));
-    try { localStorage.setItem("hog.volume", String(this.volume)); } catch (e) {}
+    try {
+      localStorage.setItem("hog.volume", String(this.volume));
+    } catch (e) {}
     this._applyMaster();
   }
 
   // Sin argumento alterna; silenciar no pierde el volumen elegido
   toggleMute(isMuted) {
     this.muted = typeof isMuted === "boolean" ? isMuted : !this.muted;
-    try { localStorage.setItem("hog.muted", this.muted ? "1" : "0"); } catch (e) {}
+    try {
+      localStorage.setItem("hog.muted", this.muted ? "1" : "0");
+    } catch (e) {}
     this._applyMaster();
     return this.muted;
   }
@@ -186,7 +190,7 @@ export class AudioManager {
     o.stop(now + 0.04);
   }
 
-    // --- DEPRESSION ROOM ---
+  // --- DEPRESSION ROOM ---
   startRain() {
     if (!this.ctx || this.rainNode) return;
     const len = this.ctx.sampleRate * 2;
@@ -204,7 +208,9 @@ export class AudioManager {
     const now = this.ctx.currentTime;
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.05, now + 3);
-    src.connect(bp); bp.connect(gain); gain.connect(this.masterGain);
+    src.connect(bp);
+    bp.connect(gain);
+    gain.connect(this.masterGain);
     src.start();
     this.rainNode = { src, gain };
   }
@@ -220,48 +226,54 @@ export class AudioManager {
   }
 
   playHeavyTick(level = 0.3) {
-  if (!this.ctx) return;
-  const now = this.ctx.currentTime;
-  const master = this.ctx.createGain();
-  master.gain.value = level;
-  master.connect(this.masterGain);
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const master = this.ctx.createGain();
+    master.gain.value = level;
+    master.connect(this.masterGain);
 
-  // Cuerpo grave: el triángulo tiene armónicos, así se oye en parlantes chicos
-  const o = this.ctx.createOscillator();
-  const g = this.ctx.createGain();
-  o.type = "triangle";
-  o.frequency.setValueAtTime(160, now);
-  o.frequency.exponentialRampToValueAtTime(55, now + 0.3);
-  g.gain.setValueAtTime(1, now);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-  o.connect(g); g.connect(master);
-  o.start(now); o.stop(now + 0.4);
+    // Cuerpo grave: el triángulo tiene armónicos, así se oye en parlantes chicos
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(160, now);
+    o.frequency.exponentialRampToValueAtTime(55, now + 0.3);
+    g.gain.setValueAtTime(1, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    o.connect(g);
+    g.connect(master);
+    o.start(now);
+    o.stop(now + 0.4);
 
-  // Golpe seco: ruido corto filtrado
-  const len = Math.floor(this.ctx.sampleRate * 0.1);
-  const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
-  const src = this.ctx.createBufferSource();
-  src.buffer = buf;
-  const lp = this.ctx.createBiquadFilter();
-  lp.type = "lowpass";
-  lp.frequency.value = 900;
-  src.connect(lp); lp.connect(master);
-  src.start(now);
+    // Golpe seco: ruido corto filtrado
+    const len = Math.floor(this.ctx.sampleRate * 0.1);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 900;
+    src.connect(lp);
+    lp.connect(master);
+    src.start(now);
 
-  // Clic metálico: le da el "tic" al "tum"
-  const c = this.ctx.createOscillator();
-  const cg = this.ctx.createGain();
-  c.type = "square";
-  c.frequency.value = 420;
-  cg.gain.setValueAtTime(0.25, now);
-  cg.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-  c.connect(cg); cg.connect(master);
-  c.start(now); c.stop(now + 0.06);
-}
+    // Clic metálico: le da el "tic" al "tum"
+    const c = this.ctx.createOscillator();
+    const cg = this.ctx.createGain();
+    c.type = "square";
+    c.frequency.value = 420;
+    cg.gain.setValueAtTime(0.25, now);
+    cg.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    c.connect(cg);
+    cg.connect(master);
+    c.start(now);
+    c.stop(now + 0.06);
+  }
 
-// ============================================================
+  // ============================================================
   // ACEPTACIÓN
   // ============================================================
 
@@ -333,7 +345,10 @@ export class AudioManager {
     master.gain.setValueAtTime(0.08, now);
     master.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
     master.connect(this.masterGain);
-    [[1, "sine"], [2.76, "triangle"]].forEach(([k, type]) => {
+    [
+      [1, "sine"],
+      [2.76, "triangle"],
+    ].forEach(([k, type]) => {
       const o = this.ctx.createOscillator();
       o.type = type;
       o.frequency.value = freq * k;
@@ -354,7 +369,8 @@ export class AudioManager {
     const len = Math.floor(ctx.sampleRate * 0.3);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const lp = ctx.createBiquadFilter();
@@ -417,13 +433,21 @@ export class AudioManager {
     const now = this.ctx.currentTime;
     bus.gain.setValueAtTime(bus.gain.value, now);
     bus.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-    nodes.forEach((n) => { try { n.stop(now + seconds + 0.1); } catch (e) {} });
+    nodes.forEach((n) => {
+      try {
+        n.stop(now + seconds + 0.1);
+      } catch (e) {}
+    });
     this.garden = null;
   }
 
   stopGarden() {
     if (!this.ctx || !this.garden) return;
-    this.garden.nodes.forEach((n) => { try { n.stop(); } catch (e) {} });
+    this.garden.nodes.forEach((n) => {
+      try {
+        n.stop();
+      } catch (e) {}
+    });
     this.garden.bus.disconnect();
     this.garden = null;
   }
@@ -508,9 +532,18 @@ export class AudioManager {
     });
 
     this.denial = {
-      out, limiter, ghostBus, lfoGain, voices, nodes,
-      r: 0, resolved: 0, found: new Set(),
-      clockOk: false, tickAlt: false, timer: null,
+      out,
+      limiter,
+      ghostBus,
+      lfoGain,
+      voices,
+      nodes,
+      r: 0,
+      resolved: 0,
+      found: new Set(),
+      clockOk: false,
+      tickAlt: false,
+      timer: null,
     };
     this._denialSchedule();
   }
@@ -524,7 +557,9 @@ export class AudioManager {
     d.voices.forEach((v) => {
       const n = v.def.from + (v.def.to - v.def.from) * r;
       const f = 220 * Math.pow(2, n / 12);
-      v.oscs.forEach(({ o, mult }) => o.frequency.setTargetAtTime(f * mult, t, 1.2));
+      v.oscs.forEach(({ o, mult }) =>
+        o.frequency.setTargetAtTime(f * mult, t, 1.2),
+      );
       v.lp.frequency.setTargetAtTime(1500 - 600 * r, t, 1.5); // más cálido al resolverse
     });
     d.lfoGain.gain.setTargetAtTime(0.35 * (1 - 0.6 * r), t, 1.5); // respira menos
@@ -532,7 +567,12 @@ export class AudioManager {
 
   _denialDest(pan = 0, bus = null) {
     const d = this.denial;
-    const dest = bus || (d && d.out) || (this.anger && this.anger.out) || (this.bargain && this.bargain.out) || this.masterGain;
+    const dest =
+      bus ||
+      (d && d.out) ||
+      (this.anger && this.anger.out) ||
+      (this.bargain && this.bargain.out) ||
+      this.masterGain;
     if (!pan || !this.ctx.createStereoPanner) return dest;
     const p = this.ctx.createStereoPanner();
     p.pan.value = pan;
@@ -544,13 +584,16 @@ export class AudioManager {
   _denialTone(freq, t, level, dur, pan = 0) {
     const ctx = this.ctx;
     const dest = this._denialDest(pan);
-    [[1, 1], [2, 0.3]].forEach(([mult, amp]) => {
+    [
+      [1, 1],
+      [2, 0.3],
+    ].forEach(([mult, amp]) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.type = "sine";
       o.frequency.value = freq * mult;
       g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(level * amp, t + 0.25);
+      g.gain.exponentialRampToValueAtTime(level * amp, t + 0.25);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur / mult);
       o.connect(g);
       g.connect(dest);
@@ -566,7 +609,8 @@ export class AudioManager {
     const len = Math.floor(ctx.sampleRate * 0.03);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    for (let i = 0; i < len; i++)
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const bp = ctx.createBiquadFilter();
@@ -631,13 +675,20 @@ export class AudioManager {
       const semis = set[Math.floor(Math.random() * set.length)];
       const cents = (Math.random() * 2 - 1) * 40 * (1 - r);
       const f = 440 * Math.pow(2, semis / 12 + cents / 1200);
-      this._denialTone(f, now, 0.04, 1.6, pan); 
+      this._denialTone(f, now, 0.04, 1.6, pan);
       const delay = (1 - r) * (0.55 + Math.random() * 0.5) + r * 0.28;
       const off = (Math.random() < 0.5 ? -1 : 1) * 45 * (1 - r);
-      this._denialTone(f * Math.pow(2, off / 1200), now + delay, 0.018, 1.2, -pan); 
+      this._denialTone(
+        f * Math.pow(2, off / 1200),
+        now + delay,
+        0.018,
+        1.2,
+        -pan,
+      );
     } else {
       // Dos tonos que pelean: intervalo de 2ª menor (r=0) a quinta (r=1), con fade lento
-      const f = 440 * Math.pow(2, [0, 4, 7][Math.floor(Math.random() * 3)] / 12) * 0.5;
+      const f =
+        440 * Math.pow(2, [0, 4, 7][Math.floor(Math.random() * 3)] / 12) * 0.5;
       const iv = 1 + 6 * r + (Math.random() - 0.5) * (1 - r);
       const dest = this._denialDest(pan);
       [f, f * Math.pow(2, iv / 12)].forEach((fr) => {
@@ -675,7 +726,7 @@ export class AudioManager {
     o.frequency.setValueAtTime(target * Math.pow(2, -0.9 / 12), now + 0.05);
     o.frequency.exponentialRampToValueAtTime(target, now + 0.8);
     g.gain.setValueAtTime(0.0001, now + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.05, now + 0.12);  
+    g.gain.exponentialRampToValueAtTime(0.05, now + 0.12);
     g.gain.exponentialRampToValueAtTime(0.0001, now + 2.4);
     o.connect(g);
     g.connect(d.out);
@@ -710,10 +761,20 @@ export class AudioManager {
     d.out.gain.cancelScheduledValues(now);
     d.out.gain.setValueAtTime(Math.max(d.out.gain.value, 0.0001), now);
     d.out.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-    d.nodes.forEach((n) => { try { n.stop(now + seconds + 0.1); } catch (e) {} });
-    setTimeout(() => {
-      try { d.out.disconnect(); d.limiter.disconnect(); } catch (e) {}
-    }, (seconds + 0.5) * 1000);
+    d.nodes.forEach((n) => {
+      try {
+        n.stop(now + seconds + 0.1);
+      } catch (e) {}
+    });
+    setTimeout(
+      () => {
+        try {
+          d.out.disconnect();
+          d.limiter.disconnect();
+        } catch (e) {}
+      },
+      (seconds + 0.5) * 1000,
+    );
   }
 
   // ============================================================
@@ -788,7 +849,8 @@ export class AudioManager {
       vlp.frequency.value = 800;
       const vg = ctx.createGain();
       vg.gain.setValueAtTime(0.0001, now);
-      if (def.g0 > 0) vg.gain.exponentialRampToValueAtTime(def.g0 * 0.045, now + 3);
+      if (def.g0 > 0)
+        vg.gain.exponentialRampToValueAtTime(def.g0 * 0.045, now + 3);
       vlp.connect(vg);
       vg.connect(drone);
       const oscs = [0, 7].map((cents) => {
@@ -805,8 +867,17 @@ export class AudioManager {
     });
 
     this.anger = {
-      out, limiter, lp, wobbleGain, bus, drone, lfoGain, voices, nodes,
-      phase: "tense", timer: null,
+      out,
+      limiter,
+      lp,
+      wobbleGain,
+      bus,
+      drone,
+      lfoGain,
+      voices,
+      nodes,
+      phase: "tense",
+      timer: null,
     };
     this._angerSchedule();
   }
@@ -835,7 +906,8 @@ export class AudioManager {
       if (a.phase !== "silent") {
         const t = this.ctx.currentTime + 0.03;
         this._angerHit(t, 0.16);
-        if (Math.random() < 0.3) this._angerHit(t + 0.18 + Math.random() * 0.12, 0.09);
+        if (Math.random() < 0.3)
+          this._angerHit(t + 0.18 + Math.random() * 0.12, 0.09);
       }
       this._angerSchedule();
     }, wait);
@@ -860,7 +932,8 @@ export class AudioManager {
     const len = Math.floor(ctx.sampleRate * 0.12);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const nlp = ctx.createBiquadFilter();
@@ -938,10 +1011,20 @@ export class AudioManager {
     d.out.gain.cancelScheduledValues(now);
     d.out.gain.setValueAtTime(Math.max(d.out.gain.value, 0.0001), now);
     d.out.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-    d.nodes.forEach((n) => { try { n.stop(now + seconds + 0.1); } catch (e) {} });
-    setTimeout(() => {
-      try { d.out.disconnect(); d.limiter.disconnect(); } catch (e) {}
-    }, (seconds + 0.5) * 1000);
+    d.nodes.forEach((n) => {
+      try {
+        n.stop(now + seconds + 0.1);
+      } catch (e) {}
+    });
+    setTimeout(
+      () => {
+        try {
+          d.out.disconnect();
+          d.limiter.disconnect();
+        } catch (e) {}
+      },
+      (seconds + 0.5) * 1000,
+    );
   }
 
   // Tic-tac del reloj que vuelve a andar: el MISMO sonido en Negación e Ira
@@ -986,10 +1069,15 @@ export class AudioManager {
     lp.connect(out);
 
     this.bargain = {
-      out, limiter, lp,
+      out,
+      limiter,
+      lp,
       t: 0.25, // tensión 0..1
       phase: "searching", // searching -> letting -> resolved
-      quietUntil: 0, timer: null, keysTimer: null, soon: null,
+      quietUntil: 0,
+      timer: null,
+      keysTimer: null,
+      soon: null,
     };
     this.bargain.soon = setTimeout(() => this._bargainSwell(), 1200);
     this._bargainSchedule();
@@ -999,7 +1087,11 @@ export class AudioManager {
   _bargainApply() {
     const d = this.bargain;
     if (!d) return;
-    d.lp.frequency.setTargetAtTime(1100 + 1300 * d.t, this.ctx.currentTime, 0.8);
+    d.lp.frequency.setTargetAtTime(
+      1100 + 1300 * d.t,
+      this.ctx.currentTime,
+      0.8,
+    );
   }
 
   _bargainSwell() {
@@ -1013,7 +1105,9 @@ export class AudioManager {
       [220, 246.94, 329.63], // La Si Mi  (sus2)
       [220, 293.66, 392.0], //  La Re Sol (cuartas)
     ];
-    const notes = resolved ? [220, 277.18, 329.63, 440] : chords[Math.floor(Math.random() * chords.length)];
+    const notes = resolved
+      ? [220, 277.18, 329.63, 440]
+      : chords[Math.floor(Math.random() * chords.length)];
     const pf = resolved ? 1 : Math.pow(2, (d.t * 60) / 1200);
     const amp = (resolved ? 0.7 : 0.85 + 0.35 * d.t) * 0.03;
     const dur = 4.5 + Math.random() * 2;
@@ -1026,7 +1120,10 @@ export class AudioManager {
       e.gain.exponentialRampToValueAtTime(amp, t0 + 1.3);
       e.gain.exponentialRampToValueAtTime(0.0001, now + dur);
       e.connect(dest);
-      [["triangle", 1, 1], ["sine", 2, 0.3]].forEach(([type, mult, a]) => {
+      [
+        ["triangle", 1, 1],
+        ["sine", 2, 0.3],
+      ].forEach(([type, mult, a]) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = type;
@@ -1058,19 +1155,22 @@ export class AudioManager {
   _bargainKeysSchedule() {
     const d = this.bargain;
     if (!d) return;
-    d.keysTimer = setTimeout(() => {
-      const b = this.bargain;
-      if (!b) return;
-      if (b.phase === "searching" && performance.now() >= b.quietUntil) {
-        this._keysJingle(
-          this.ctx.currentTime + 0.05,
-          0.012 + 0.008 * b.t,
-          (Math.random() * 2 - 1) * 0.7,
-          3 + Math.floor(Math.random() * 3),
-        );
-      }
-      this._bargainKeysSchedule();
-    }, 6000 + Math.random() * 9000);
+    d.keysTimer = setTimeout(
+      () => {
+        const b = this.bargain;
+        if (!b) return;
+        if (b.phase === "searching" && performance.now() >= b.quietUntil) {
+          this._keysJingle(
+            this.ctx.currentTime + 0.05,
+            0.012 + 0.008 * b.t,
+            (Math.random() * 2 - 1) * 0.7,
+            3 + Math.floor(Math.random() * 3),
+          );
+        }
+        this._bargainKeysSchedule();
+      },
+      6000 + Math.random() * 9000,
+    );
   }
 
   // Llaves que traquetean contra algo cerrado: golpecitos metálicos apagados, graves para
@@ -1089,7 +1189,8 @@ export class AudioManager {
       const len = Math.floor(ctx.sampleRate * 0.04);
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const data = buf.getChannelData(0);
-      for (let k = 0; k < len; k++) data[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 2);
+      for (let k = 0; k < len; k++)
+        data[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 2);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const bp = ctx.createBiquadFilter();
@@ -1196,7 +1297,10 @@ export class AudioManager {
       e.gain.exponentialRampToValueAtTime(0.04, t0 + 1.5);
       e.gain.exponentialRampToValueAtTime(0.0001, now + dur);
       e.connect(d.lp);
-      [["triangle", 1, 1], ["sine", 2, 0.3]].forEach(([type, mult, a]) => {
+      [
+        ["triangle", 1, 1],
+        ["sine", 2, 0.3],
+      ].forEach(([type, mult, a]) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = type;
@@ -1225,9 +1329,15 @@ export class AudioManager {
     d.out.gain.cancelScheduledValues(now);
     d.out.gain.setValueAtTime(Math.max(d.out.gain.value, 0.0001), now);
     d.out.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-    setTimeout(() => {
-      try { d.out.disconnect(); d.limiter.disconnect(); } catch (e) {}
-    }, (seconds + 0.5) * 1000);
+    setTimeout(
+      () => {
+        try {
+          d.out.disconnect();
+          d.limiter.disconnect();
+        } catch (e) {}
+      },
+      (seconds + 0.5) * 1000,
+    );
   }
 
   // ============================================================
@@ -1305,9 +1415,13 @@ export class AudioManager {
     const voices = FREQS.map((f, i) => {
       const vg = ctx.createGain();
       vg.gain.setValueAtTime(0.0001, now);
-      if (PAD[from][i] > 0) vg.gain.exponentialRampToValueAtTime(PAD[from][i] * 0.03, now + 3);
+      if (PAD[from][i] > 0)
+        vg.gain.exponentialRampToValueAtTime(PAD[from][i] * 0.03, now + 3);
       vg.connect(padLp);
-      [["triangle", 1, 1], ["sine", 2, 0.3]].forEach(([type, mult, a]) => {
+      [
+        ["triangle", 1, 1],
+        ["sine", 2, 0.3],
+      ].forEach(([type, mult, a]) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = type;
@@ -1322,8 +1436,21 @@ export class AudioManager {
     });
 
     this.corridor = {
-      out, limiter, dry, send, padLp, voices, nodes, PAD, PADLP,
-      state: from, lastFlick: -10, stepAlt: false, humTimer: null, soon: null, soon2: null,
+      out,
+      limiter,
+      dry,
+      send,
+      padLp,
+      voices,
+      nodes,
+      PAD,
+      PADLP,
+      state: from,
+      lastFlick: -10,
+      stepAlt: false,
+      humTimer: null,
+      soon: null,
+      soon2: null,
     };
     this._corrLast = from;
 
@@ -1333,7 +1460,10 @@ export class AudioManager {
     }, 2500);
     this._corrHumSchedule();
     if (from !== state) {
-      this.corridor.soon2 = setTimeout(() => this.setCorridorAudioState(state), 1800);
+      this.corridor.soon2 = setTimeout(
+        () => this.setCorridorAudioState(state),
+        1800,
+      );
     }
   }
 
@@ -1377,7 +1507,12 @@ export class AudioManager {
     const d = this.corridor;
     if (!d) return;
     const s = d.state;
-    const wait = s === 0 ? 5000 + Math.random() * 9000 : s === 1 ? 14000 + Math.random() * 14000 : 6000;
+    const wait =
+      s === 0
+        ? 5000 + Math.random() * 9000
+        : s === 1
+          ? 14000 + Math.random() * 14000
+          : 6000;
     d.humTimer = setTimeout(() => {
       const c = this.corridor;
       if (!c) return;
@@ -1395,7 +1530,8 @@ export class AudioManager {
       const len = Math.floor(ctx.sampleRate * 0.012);
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const data = buf.getChannelData(0);
-      for (let k = 0; k < len; k++) data[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 2);
+      for (let k = 0; k < len; k++)
+        data[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 2);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const bp = ctx.createBiquadFilter();
@@ -1421,7 +1557,11 @@ export class AudioManager {
     if (Math.random() > (d.state === 0 ? 0.7 : 0.35)) return;
     d.lastFlick = now;
     const k = d.state === 0 ? 1 : 0.45;
-    this._corrCrackle(now + 0.01, 0.03 * k, d.state === 0 ? 3 + Math.floor(Math.random() * 3) : 1);
+    this._corrCrackle(
+      now + 0.01,
+      0.03 * k,
+      d.state === 0 ? 3 + Math.floor(Math.random() * 3) : 1,
+    );
   }
 
   // Un paso: talón (ruido filtrado) + cuerpo corto, con eco de pasillo.
@@ -1438,7 +1578,8 @@ export class AudioManager {
     const len = Math.floor(ctx.sampleRate * 0.06);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    for (let i = 0; i < len; i++)
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const lp = ctx.createBiquadFilter();
@@ -1472,12 +1613,16 @@ export class AudioManager {
     if (!d) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
-    const route = (n) => { n.connect(d.dry); n.connect(d.send); };
+    const route = (n) => {
+      n.connect(d.dry);
+      n.connect(d.send);
+    };
 
     const len = Math.floor(ctx.sampleRate * 0.02);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    for (let i = 0; i < len; i++)
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const bp = ctx.createBiquadFilter();
@@ -1530,10 +1675,19 @@ export class AudioManager {
     d.out.gain.cancelScheduledValues(now);
     d.out.gain.setValueAtTime(Math.max(d.out.gain.value, 0.0001), now);
     d.out.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-    d.nodes.forEach((n) => { try { n.stop(now + seconds + 0.1); } catch (e) {} });
-    setTimeout(() => {
-      try { d.out.disconnect(); d.limiter.disconnect(); } catch (e) {}
-    }, (seconds + 0.5) * 1000);
+    d.nodes.forEach((n) => {
+      try {
+        n.stop(now + seconds + 0.1);
+      } catch (e) {}
+    });
+    setTimeout(
+      () => {
+        try {
+          d.out.disconnect();
+          d.limiter.disconnect();
+        } catch (e) {}
+      },
+      (seconds + 0.5) * 1000,
+    );
   }
-
 }

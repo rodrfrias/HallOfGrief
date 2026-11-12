@@ -18,7 +18,7 @@ class App {
     this.gameManager = new GameManager();
     this.currentRoom = null;
     this.lastDoorPivot = null;
-    this.centerScreen = new THREE.Vector2(0, 0)
+    this.centerScreen = new THREE.Vector2(0, 0);
     AngerRoom.preloadFonts();
     this.initScene();
     this.initCore();
@@ -282,7 +282,7 @@ class App {
     }
 
     if (this.currentRoom) this.unloadRoom(this.currentRoom);
-    
+
     const roomFactories = {
       Denial: () =>
         new DenialRoom(
@@ -330,7 +330,8 @@ class App {
           (t) => this.showPrompt(t),
           {
             memories: [...this.gameManager.memories],
-            setControlsLocked: (locked) => (locked ? this.controls.lock() : this.menus.unlockQuietly()),
+            setControlsLocked: (locked) =>
+              locked ? this.controls.lock() : this.menus.unlockQuietly(),
             onFinish: () => this.finishExperience(),
           },
         ),
@@ -376,7 +377,6 @@ class App {
     }, 100);
   }
 
-  
   animateExitAndLoad(innerDoorPivot) {
     if (!innerDoorPivot) return;
 
@@ -520,7 +520,12 @@ class App {
     // Cada sala restaura lo que tocó (far de la cámara, niebla, audio, texturas)
     if (typeof roomInstance.dispose === "function") roomInstance.dispose();
     roomInstance.roomGroup.traverse((object) => {
-      if (object.userData && (object.userData.isCorridorDoor || object.userData.id?.startsWith("entryDoor"))) return;
+      if (
+        object.userData &&
+        (object.userData.isCorridorDoor ||
+          object.userData.id?.startsWith("entryDoor"))
+      )
+        return;
       if (object.geometry) object.geometry.dispose();
       if (!object.material) return;
       const materials = Array.isArray(object.material)
@@ -604,14 +609,17 @@ class App {
     }
 
     // 2. Lógica de renderizado de entornos
-        // 2. Lógica de renderizado de entornos
+    // 2. Lógica de renderizado de entornos
     if (!this.currentRoom) {
       this.corridor.update(elapsedTime, this.controls.getObject().position.z);
 
       // Pasos (solo en el pasillo)
       const p = this.controls.getObject().position;
       if (this._lastStepPos) {
-        const d = Math.hypot(p.x - this._lastStepPos.x, p.z - this._lastStepPos.z);
+        const d = Math.hypot(
+          p.x - this._lastStepPos.x,
+          p.z - this._lastStepPos.z,
+        );
         if (d < 0.5) this._stepDist = (this._stepDist || 0) + d; // ignora teletransportes
         if (this._stepDist >= 0.8) {
           this._stepDist = 0;
@@ -628,7 +636,6 @@ class App {
 
     this.checkRaycastHover();
     this.renderer.render(this.scene, this.camera);
-    
   }
 }
 

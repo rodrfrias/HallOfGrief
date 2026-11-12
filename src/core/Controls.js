@@ -49,7 +49,11 @@ export class FirstPersonControls {
       this.isLocked = document.pointerLockElement === this.domElement;
       if (!this.isLocked) {
         // soltamos las teclas para no quedar "caminando" al pausar
-        this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+        this.moveForward =
+          this.moveBackward =
+          this.moveLeft =
+          this.moveRight =
+            false;
         this.velocity.set(0, 0, 0);
       }
     });

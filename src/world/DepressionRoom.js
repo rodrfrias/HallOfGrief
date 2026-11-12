@@ -23,7 +23,15 @@ const CFG = {
   lampLastZ: -104, // el último ilumina la puerta de salida (-108)
   lampSide: 3.2, // se alternan a izquierda y derecha del camino
   lampH: 4.6,
-  spot: { color: 0xffd9a8, intensity: 40, distance: 14, angle: 0.85, penumbra: 0.7, decay: 1.5, pool: 5 },
+  spot: {
+    color: 0xffd9a8,
+    intensity: 40,
+    distance: 14,
+    angle: 0.85,
+    penumbra: 0.7,
+    decay: 1.5,
+    pool: 5,
+  },
 
   // Freno: velocidad normal cerca de la luz, casi nula en la oscuridad
   litInner: 3.8, // metros al farol con luz plena
@@ -33,7 +41,14 @@ const CFG = {
   rainCount: 9000,
 
   // Siluetas (glitch)
-  sil: { pool: 6, interval: [3, 4], life: [5, 8], fadeEnd: 6.5, fadeStart: 16, minSpawn: 15 },
+  sil: {
+    pool: 6,
+    interval: [3, 4],
+    life: [5, 8],
+    fadeEnd: 6.5,
+    fadeStart: 16,
+    minSpawn: 15,
+  },
 
   // Reloj
   clockScale: 25, // radio final = 0.6 * 25 = 15 m
@@ -104,7 +119,10 @@ export class DepressionRoom {
       fogColor: scene.fog ? scene.fog.color.clone() : null,
       fogNear: scene.fog ? scene.fog.near : 2,
       fogFar: scene.fog ? scene.fog.far : 22,
-      bg: scene.background && scene.background.isColor ? scene.background.clone() : null,
+      bg:
+        scene.background && scene.background.isColor
+          ? scene.background.clone()
+          : null,
     };
 
     this.buildRoom();
@@ -118,7 +136,7 @@ export class DepressionRoom {
     return CFG.halfWidth;
   }
 
-  // main.js lo llama al descargar la sala 
+  // main.js lo llama al descargar la sala
   dispose() {
     this.audio?.stopRain?.();
     this.camera.far = this.saved.far;
@@ -131,7 +149,11 @@ export class DepressionRoom {
       this.scene.fog.near = this.saved.fogNear;
       this.scene.fog.far = this.saved.fogFar;
     }
-    if (this.saved.bg && this.scene.background && this.scene.background.isColor) {
+    if (
+      this.saved.bg &&
+      this.scene.background &&
+      this.scene.background.isColor
+    ) {
       this.scene.background.copy(this.saved.bg);
     }
     this.textures.forEach((t) => t.dispose());
@@ -176,9 +198,17 @@ export class DepressionRoom {
   }
 
   buildLights() {
-    this.ambient = new THREE.AmbientLight(CFG.ambient.color, CFG.ambient.intensity);
+    this.ambient = new THREE.AmbientLight(
+      CFG.ambient.color,
+      CFG.ambient.intensity,
+    );
     const P = CFG.playerLight;
-    this.playerLight = new THREE.PointLight(P.color, P.intensity, P.distance, P.decay);
+    this.playerLight = new THREE.PointLight(
+      P.color,
+      P.intensity,
+      P.distance,
+      P.decay,
+    );
     this.roomGroup.add(this.ambient, this.playerLight);
 
     // Pool de SpotLights de cantidad fija: solo iluminan los faroles cercanos.
@@ -187,7 +217,14 @@ export class DepressionRoom {
     const S = CFG.spot;
     this.spots = [];
     for (let j = 0; j < S.pool; j++) {
-      const l = new THREE.SpotLight(S.color, 0, S.distance, S.angle, S.penumbra, S.decay);
+      const l = new THREE.SpotLight(
+        S.color,
+        0,
+        S.distance,
+        S.angle,
+        S.penumbra,
+        S.decay,
+      );
       l.userData = { lamp: -1, level: 0 };
       this.roomGroup.add(l, l.target);
       this.spots.push(l);
@@ -202,7 +239,9 @@ export class DepressionRoom {
     c.fillStyle = "#15120f";
     c.fillRect(0, 0, S, S);
     for (let i = 0; i < 40; i++) {
-      const x = rnd(0, S), y = rnd(0, S), r = rnd(30, 90);
+      const x = rnd(0, S),
+        y = rnd(0, S),
+        r = rnd(30, 90);
       const g = c.createRadialGradient(x, y, 0, x, y, r);
       g.addColorStop(0, "rgba(46,60,78,0.40)");
       g.addColorStop(1, "rgba(46,60,78,0)");
@@ -210,18 +249,24 @@ export class DepressionRoom {
       c.fillRect(x - r, y - r, r * 2, r * 2);
     }
     for (let i = 0; i < 6000; i++) {
-      c.fillStyle = Math.random() > 0.5 ? "rgba(0,0,0,0.25)" : "rgba(120,110,100,0.06)";
+      c.fillStyle =
+        Math.random() > 0.5 ? "rgba(0,0,0,0.25)" : "rgba(120,110,100,0.06)";
       c.fillRect(rnd(0, S), rnd(0, S), 2, 2);
     }
     return cv;
   }
 
   buildGround() {
-    const W = 160, L = 190;
+    const W = 160,
+      L = 190;
     const t = this.tex(this.paintMud());
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(W / 6, L / 6);
-    const mat = new THREE.MeshStandardMaterial({ map: t, roughness: CFG.floorRoughness, metalness: 0 });
+    const mat = new THREE.MeshStandardMaterial({
+      map: t,
+      roughness: CFG.floorRoughness,
+      metalness: 0,
+    });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, L), mat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, 0, 2 - L / 2);
@@ -252,9 +297,11 @@ export class DepressionRoom {
   }
 
   buildLamps() {
-    const n = CFG.lampCount, H = CFG.lampH;
+    const n = CFG.lampCount,
+      H = CFG.lampH;
     for (let i = 0; i < n; i++) {
-      const z = CFG.lampFirstZ + (i * (CFG.lampLastZ - CFG.lampFirstZ)) / (n - 1);
+      const z =
+        CFG.lampFirstZ + (i * (CFG.lampLastZ - CFG.lampFirstZ)) / (n - 1);
       this.lamps.push({ x: (i % 2 ? 1 : -1) * CFG.lampSide, z });
     }
     this.lastLampZ = this.lamps[n - 1].z;
@@ -269,17 +316,52 @@ export class DepressionRoom {
         return dummy.matrix.clone();
       });
 
-    const metal = new THREE.MeshStandardMaterial({ color: 0x27324a, roughness: 0.55, metalness: 0.2 });
+    const metal = new THREE.MeshStandardMaterial({
+      color: 0x27324a,
+      roughness: 0.55,
+      metalness: 0.2,
+    });
     const shaftL = H - 1.45;
-    this.instanced(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 10), metal, at(0.04));
-    this.instanced(new THREE.CylinderGeometry(0.13, 0.3, 0.75, 10), metal, at(0.375));
-    this.instanced(new THREE.CylinderGeometry(0.07, 0.09, shaftL, 8), metal, at(0.75 + shaftL / 2));
-    this.instanced(new THREE.CylinderGeometry(0.12, 0.12, 0.14, 10), metal, at(0.75 + shaftL * 0.55));
-    this.instanced(new THREE.CylinderGeometry(0.2, 0.14, 0.08, 4).rotateY(Math.PI / 4), metal, at(H - 0.66));
-    this.instanced(new THREE.ConeGeometry(0.38, 0.28, 4).rotateY(Math.PI / 4), metal, at(H + 0.02));
+    this.instanced(
+      new THREE.CylinderGeometry(0.34, 0.34, 0.08, 10),
+      metal,
+      at(0.04),
+    );
+    this.instanced(
+      new THREE.CylinderGeometry(0.13, 0.3, 0.75, 10),
+      metal,
+      at(0.375),
+    );
+    this.instanced(
+      new THREE.CylinderGeometry(0.07, 0.09, shaftL, 8),
+      metal,
+      at(0.75 + shaftL / 2),
+    );
+    this.instanced(
+      new THREE.CylinderGeometry(0.12, 0.12, 0.14, 10),
+      metal,
+      at(0.75 + shaftL * 0.55),
+    );
+    this.instanced(
+      new THREE.CylinderGeometry(0.2, 0.14, 0.08, 4).rotateY(Math.PI / 4),
+      metal,
+      at(H - 0.66),
+    );
+    this.instanced(
+      new THREE.ConeGeometry(0.38, 0.28, 4).rotateY(Math.PI / 4),
+      metal,
+      at(H + 0.02),
+    );
     // Vidrio encendido (sin niebla: los faroles lejanos funcionan como faros)
-    const glassMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, fog: false });
-    this.instanced(new THREE.CylinderGeometry(0.27, 0.17, 0.5, 4).rotateY(Math.PI / 4), glassMat, at(H - 0.37));
+    const glassMat = new THREE.MeshBasicMaterial({
+      color: 0xffd9a0,
+      fog: false,
+    });
+    this.instanced(
+      new THREE.CylinderGeometry(0.27, 0.17, 0.5, 4).rotateY(Math.PI / 4),
+      glassMat,
+      at(H - 0.37),
+    );
 
     // Halo del farol
     const gp = new Float32Array(n * 3);
@@ -309,7 +391,11 @@ export class DepressionRoom {
     const beamGeo = new THREE.ConeGeometry(beamR, beamH, 28, 1, true);
     beamGeo.translate(0, beamH / 2, 0);
     const beamMat = new THREE.ShaderMaterial({
-      uniforms: { uH: { value: beamH }, uAlpha: { value: 0.2 }, uColor: { value: new THREE.Color(0xffd9a0) } },
+      uniforms: {
+        uH: { value: beamH },
+        uAlpha: { value: 0.2 },
+        uColor: { value: new THREE.Color(0xffd9a0) },
+      },
       vertexShader: `
         uniform float uH;
         varying vec3 vN; varying vec3 vV; varying float vY;
@@ -347,7 +433,10 @@ export class DepressionRoom {
     this.instanced(
       new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({
-        map: this.glowTexture("rgba(255,214,150,0.55)", "rgba(255,190,120,0.22)"),
+        map: this.glowTexture(
+          "rgba(255,214,150,0.55)",
+          "rgba(255,190,120,0.22)",
+        ),
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -360,7 +449,11 @@ export class DepressionRoom {
 
   /* ---------- Mesas y sillas hundidas en el barro (instanciadas) ---------- */
   buildProps() {
-    const wood = new THREE.MeshStandardMaterial({ color: 0x17140f, roughness: 0.5, metalness: 0 });
+    const wood = new THREE.MeshStandardMaterial({
+      color: 0x17140f,
+      roughness: 0.5,
+      metalness: 0,
+    });
     const parts = {
       tableTop: { geo: new THREE.BoxGeometry(1.5, 0.06, 0.9), items: [] },
       tableLeg: { geo: new THREE.BoxGeometry(0.07, 0.78, 0.07), items: [] },
@@ -368,21 +461,43 @@ export class DepressionRoom {
       chairLeg: { geo: new THREE.BoxGeometry(0.05, 0.45, 0.05), items: [] },
       chairBack: { geo: new THREE.BoxGeometry(0.46, 0.5, 0.05), items: [] },
     };
-    const quat = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), eul = new THREE.Euler();
+    const quat = new THREE.Quaternion(),
+      one = new THREE.Vector3(1, 1, 1),
+      eul = new THREE.Euler();
     const push = (part, base, lx, ly, lz) => {
-      parts[part].items.push(base.clone().multiply(new THREE.Matrix4().makeTranslation(lx, ly, lz)));
+      parts[part].items.push(
+        base.clone().multiply(new THREE.Matrix4().makeTranslation(lx, ly, lz)),
+      );
     };
     const place = (type, x, z) => {
       eul.set(rnd(-0.22, 0.22), rnd(0, Math.PI * 2), rnd(-0.22, 0.22));
       quat.setFromEuler(eul);
-      const base = new THREE.Matrix4().compose(new THREE.Vector3(x, -rnd(0.22, 0.45), z), quat, one);
+      const base = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, -rnd(0.22, 0.45), z),
+        quat,
+        one,
+      );
       if (type === "table") {
         push("tableTop", base, 0, 0.78, 0);
-        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => push("tableLeg", base, sx * 0.68, 0.39, sz * 0.38));
+        [
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ].forEach(([sx, sz]) =>
+          push("tableLeg", base, sx * 0.68, 0.39, sz * 0.38),
+        );
       } else {
         push("chairSeat", base, 0, 0.45, 0);
         push("chairBack", base, 0, 0.72, -0.21);
-        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => push("chairLeg", base, sx * 0.19, 0.225, sz * 0.19));
+        [
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ].forEach(([sx, sz]) =>
+          push("chairLeg", base, sx * 0.19, 0.225, sz * 0.19),
+        );
       }
     };
 
@@ -416,7 +531,10 @@ export class DepressionRoom {
     const end = new Float32Array(N * 2);
     const seed = new Float32Array(N * 2);
     for (let i = 0; i < N; i++) {
-      const x = Math.random(), y = Math.random(), z = Math.random(), s = Math.random();
+      const x = Math.random(),
+        y = Math.random(),
+        z = Math.random(),
+        s = Math.random();
       pos.set([x, y, z, x, y, z], i * 6);
       end[i * 2] = 0;
       end[i * 2 + 1] = 1;
@@ -482,7 +600,8 @@ export class DepressionRoom {
 
   /* ---------- Siluetas 2D con glitch ---------- */
   paintFigure(v) {
-    const W = 256, H = 512;
+    const W = 256,
+      H = 512;
     const draw = (c) => {
       const poly = (pts) => {
         c.beginPath();
@@ -491,40 +610,122 @@ export class DepressionRoom {
         c.fill();
       };
       const standing = () => {
-        c.beginPath(); c.ellipse(128, 76, 23, 30, 0, 0, Math.PI * 2); c.fill();
-        poly([[114, 104], [142, 104], [146, 118], [110, 118]]);
-        poly([[94, 118], [162, 118], [174, 300], [82, 300]]);
-        poly([[82, 122], [96, 122], [86, 310], [72, 308]]);
-        poly([[160, 122], [174, 122], [184, 308], [170, 310]]);
-        poly([[92, 296], [126, 296], [122, 490], [100, 490]]);
-        poly([[130, 296], [164, 296], [156, 490], [134, 490]]);
+        c.beginPath();
+        c.ellipse(128, 76, 23, 30, 0, 0, Math.PI * 2);
+        c.fill();
+        poly([
+          [114, 104],
+          [142, 104],
+          [146, 118],
+          [110, 118],
+        ]);
+        poly([
+          [94, 118],
+          [162, 118],
+          [174, 300],
+          [82, 300],
+        ]);
+        poly([
+          [82, 122],
+          [96, 122],
+          [86, 310],
+          [72, 308],
+        ]);
+        poly([
+          [160, 122],
+          [174, 122],
+          [184, 308],
+          [170, 310],
+        ]);
+        poly([
+          [92, 296],
+          [126, 296],
+          [122, 490],
+          [100, 490],
+        ]);
+        poly([
+          [130, 296],
+          [164, 296],
+          [156, 490],
+          [134, 490],
+        ]);
       };
       if (v === 0) {
         standing();
       } else if (v === 1) {
         // sentada, encorvada, en una silla
-        c.beginPath(); c.ellipse(118, 190, 24, 28, 0.3, 0, Math.PI * 2); c.fill();
-        poly([[98, 214], [150, 210], [162, 360], [96, 366]]);
-        poly([[96, 350], [214, 340], [218, 374], [96, 388]]);
-        poly([[192, 372], [218, 374], [214, 480], [192, 480]]);
-        poly([[148, 226], [196, 300], [186, 312], [140, 250]]);
-        poly([[66, 236], [80, 236], [80, 480], [66, 480]]);
-        poly([[70, 378], [150, 378], [150, 388], [70, 388]]);
+        c.beginPath();
+        c.ellipse(118, 190, 24, 28, 0.3, 0, Math.PI * 2);
+        c.fill();
+        poly([
+          [98, 214],
+          [150, 210],
+          [162, 360],
+          [96, 366],
+        ]);
+        poly([
+          [96, 350],
+          [214, 340],
+          [218, 374],
+          [96, 388],
+        ]);
+        poly([
+          [192, 372],
+          [218, 374],
+          [214, 480],
+          [192, 480],
+        ]);
+        poly([
+          [148, 226],
+          [196, 300],
+          [186, 312],
+          [140, 250],
+        ]);
+        poly([
+          [66, 236],
+          [80, 236],
+          [80, 480],
+          [66, 480],
+        ]);
+        poly([
+          [70, 378],
+          [150, 378],
+          [150, 388],
+          [70, 388],
+        ]);
       } else {
         // dos figuras, una grande y una chica
-        c.save(); c.translate(-34, 36); c.scale(0.9, 0.9); standing(); c.restore();
-        c.save(); c.translate(148, 232); c.scale(0.55, 0.55); standing(); c.restore();
+        c.save();
+        c.translate(-34, 36);
+        c.scale(0.9, 0.9);
+        standing();
+        c.restore();
+        c.save();
+        c.translate(148, 232);
+        c.scale(0.55, 0.55);
+        standing();
+        c.restore();
       }
     };
     // R = silueta, G = halo borroso (se usa para la estática alrededor)
-    const mc = canvasOf(W, H), m = mc.getContext("2d");
-    m.fillStyle = "#000"; m.fillRect(0, 0, W, H);
-    m.fillStyle = "#fff"; draw(m);
-    const hc = canvasOf(W, H), h = hc.getContext("2d");
-    h.shadowColor = "#fff"; h.shadowBlur = 34; h.shadowOffsetX = 1000;
-    h.fillStyle = "#fff"; h.translate(-1000, 0); draw(h);
-    const md = m.getImageData(0, 0, W, H), hd = h.getImageData(0, 0, W, H);
-    const out = canvasOf(W, H), o = out.getContext("2d");
+    const mc = canvasOf(W, H),
+      m = mc.getContext("2d");
+    m.fillStyle = "#000";
+    m.fillRect(0, 0, W, H);
+    m.fillStyle = "#fff";
+    draw(m);
+    const hc = canvasOf(W, H),
+      h = hc.getContext("2d");
+    h.shadowColor = "#fff";
+    h.shadowBlur = 34;
+    h.shadowOffsetX = 1000;
+    h.fillStyle = "#fff";
+    h.translate(-1000, 0);
+    draw(h);
+    const md = m.getImageData(0, 0, W, H),
+      hd = h.getImageData(0, 0, W, H);
+    const out = canvasOf(W, H),
+      o = out.getContext("2d");
     const od = o.createImageData(W, H);
     for (let i = 0; i < W * H; i++) {
       od.data[i * 4] = md.data[i * 4];
@@ -589,7 +790,11 @@ export class DepressionRoom {
     for (let attempt = 0; attempt < 8; attempt++) {
       const side = Math.random() < 0.5 ? -1 : 1;
       const x = side * rnd(8, 22);
-      const z = THREE.MathUtils.clamp(pz - rnd(15, 42), this.exitZ - 6, this.doorZ - 8);
+      const z = THREE.MathUtils.clamp(
+        pz - rnd(15, 42),
+        this.exitZ - 6,
+        this.doorZ - 8,
+      );
       if (Math.hypot(x - px, z - pz) < S.minSpawn) continue;
       s.mesh.position.set(x, 1.3, z);
       s.mat.uniforms.uMap.value = this.figTex[(Math.random() * 3) | 0];
@@ -608,7 +813,12 @@ export class DepressionRoom {
   // el modelo original de CorridorDoor no se toca.
   stripVoid(group) {
     [...group.children].forEach((c) => {
-      if (c.isMesh && c.material && c.material.isMeshBasicMaterial && c.material.color.getHex() === 0x000000) {
+      if (
+        c.isMesh &&
+        c.material &&
+        c.material.isMeshBasicMaterial &&
+        c.material.color.getHex() === 0x000000
+      ) {
         group.remove(c);
         c.geometry.dispose();
         c.material.dispose();
@@ -648,7 +858,8 @@ export class DepressionRoom {
 
   /* ---------- Reloj imponente (mismo reloj, materiales sin luz y sin niebla) ---------- */
   paintClockFace() {
-    const S = 1024, c0 = S / 2;
+    const S = 1024,
+      c0 = S / 2;
     const cv = canvasOf(S, S);
     const c = cv.getContext("2d");
     const g = c.createRadialGradient(c0, c0, 0, c0, c0, c0);
@@ -659,17 +870,25 @@ export class DepressionRoom {
     c.fillRect(0, 0, S, S);
     c.strokeStyle = "rgba(150,190,200,0.35)";
     c.lineWidth = 4;
-    c.beginPath(); c.arc(c0, c0, c0 * 0.94, 0, Math.PI * 2); c.stroke();
+    c.beginPath();
+    c.arc(c0, c0, c0 * 0.94, 0, Math.PI * 2);
+    c.stroke();
     c.translate(c0, c0);
     c.lineCap = "round";
     for (let i = 0; i < 60; i++) {
       c.save();
       c.rotate((i / 60) * Math.PI * 2);
-      const hour = i % 5 === 0, card = i % 15 === 0;
-      c.strokeStyle = i === 0 ? "#d98a6c" : hour ? "#b9c9d4" : "rgba(185,201,212,0.45)";
+      const hour = i % 5 === 0,
+        card = i % 15 === 0;
+      c.strokeStyle =
+        i === 0 ? "#d98a6c" : hour ? "#b9c9d4" : "rgba(185,201,212,0.45)";
       c.lineWidth = card ? 20 : hour ? 13 : 4;
-      const r1 = c0 * 0.9, r2 = r1 - (card ? 100 : hour ? 70 : 20);
-      c.beginPath(); c.moveTo(0, -r1); c.lineTo(0, -r2); c.stroke();
+      const r1 = c0 * 0.9,
+        r2 = r1 - (card ? 100 : hour ? 70 : 20);
+      c.beginPath();
+      c.moveTo(0, -r1);
+      c.lineTo(0, -r2);
+      c.stroke();
       c.restore();
     }
     return this.tex(cv);
@@ -678,29 +897,51 @@ export class DepressionRoom {
   buildClock() {
     const R = 0.6;
     const group = new THREE.Group();
-    const add = (m) => { group.add(m); return m; };
+    const add = (m) => {
+      group.add(m);
+      return m;
+    };
     const basic = (color) => new THREE.MeshBasicMaterial({ color, fog: false });
 
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.07, R + 0.07, 0.12, 96), basic(0x241d19));
-    body.rotation.x = Math.PI / 2; body.position.z = 0.06; add(body);
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(R + 0.07, R + 0.07, 0.12, 96),
+      basic(0x241d19),
+    );
+    body.rotation.x = Math.PI / 2;
+    body.position.z = 0.06;
+    add(body);
 
     const face = new THREE.Mesh(
       new THREE.CircleGeometry(R, 96),
       new THREE.MeshBasicMaterial({ map: this.paintClockFace(), fog: false }),
     );
-    face.position.z = 0.122; add(face);
+    face.position.z = 0.122;
+    add(face);
 
-    const bezel = new THREE.Mesh(new THREE.TorusGeometry(R + 0.035, 0.035, 16, 96), basic(0x3a4a55));
-    bezel.position.z = 0.125; add(bezel);
+    const bezel = new THREE.Mesh(
+      new THREE.TorusGeometry(R + 0.035, 0.035, 16, 96),
+      basic(0x3a4a55),
+    );
+    bezel.position.z = 0.125;
+    add(bezel);
 
     const makeHand = (len, w, tail, mat, depth, z) => {
       const s = new THREE.Shape();
-      s.moveTo(-w / 2, -tail); s.lineTo(w / 2, -tail); s.lineTo(w / 2, len * 0.88); s.lineTo(0, len); s.lineTo(-w / 2, len * 0.88); s.closePath();
-      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }), mat);
+      s.moveTo(-w / 2, -tail);
+      s.lineTo(w / 2, -tail);
+      s.lineTo(w / 2, len * 0.88);
+      s.lineTo(0, len);
+      s.lineTo(-w / 2, len * 0.88);
+      s.closePath();
+      const m = new THREE.Mesh(
+        new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }),
+        mat,
+      );
       m.position.z = z;
       return add(m);
     };
-    const cream = basic(0xe3d8c8), coral = basic(0xd86a4a);
+    const cream = basic(0xe3d8c8),
+      coral = basic(0xd86a4a);
     const hourHand = makeHand(R * 0.52, 0.08, 0.06, cream, 0.01, 0.13);
     const minuteHand = makeHand(R * 0.82, 0.055, 0.07, cream, 0.01, 0.142);
     const secondHand = makeHand(R * 0.9, 0.012, R * 0.18, coral, 0.004, 0.154);
@@ -710,7 +951,9 @@ export class DepressionRoom {
     const cz = this.exitZ - CFG.clockBehind;
     group.position.set(0, CFG.clockY, cz);
     // Renderizado forzado: sin niebla, sin culling, y dibujado aunque quede lejos del frustum
-    group.traverse((o) => { o.frustumCulled = false; });
+    group.traverse((o) => {
+      o.frustumCulled = false;
+    });
     this.clockGroup = group;
 
     // Resplandor frío detrás del reloj (la luna que no es luna)
@@ -718,7 +961,10 @@ export class DepressionRoom {
     const halo = new THREE.Mesh(
       new THREE.PlaneGeometry(rW * 5, rW * 5),
       new THREE.MeshBasicMaterial({
-        map: this.glowTexture("rgba(150,190,230,0.55)", "rgba(120,160,210,0.16)"),
+        map: this.glowTexture(
+          "rgba(150,190,230,0.55)",
+          "rgba(120,160,210,0.16)",
+        ),
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -739,7 +985,8 @@ export class DepressionRoom {
     const T = CFG.clockTick;
     const n = Math.floor(t / T);
     const q = Math.min(1, (t - n * T) / 0.55);
-    const sweep = 1 - Math.pow(1 - q, 3) + 0.07 * Math.sin(q * Math.PI * 3) * (1 - q);
+    const sweep =
+      1 - Math.pow(1 - q, 3) + 0.07 * Math.sin(q * Math.PI * 3) * (1 - q);
     const ticks = n + sweep;
     const TAU = Math.PI * 2;
     const { hourHand, minuteHand, secondHand } = this.clockHands;
@@ -759,7 +1006,10 @@ export class DepressionRoom {
   lightAt(px, pz) {
     let light = 0;
     for (const l of this.lamps) {
-      light = Math.max(light, 1 - smooth(CFG.litInner, CFG.litOuter, Math.hypot(px - l.x, pz - l.z)));
+      light = Math.max(
+        light,
+        1 - smooth(CFG.litInner, CFG.litOuter, Math.hypot(px - l.x, pz - l.z)),
+      );
     }
     return light;
   }
@@ -785,7 +1035,10 @@ export class DepressionRoom {
       yaw.position.x = this.prev.x + dx * this.brake;
       yaw.position.z = this.prev.z + dz * this.brake;
     }
-    const real = Math.hypot(yaw.position.x - this.prev.x, yaw.position.z - this.prev.z);
+    const real = Math.hypot(
+      yaw.position.x - this.prev.x,
+      yaw.position.z - this.prev.z,
+    );
     this.prev.copy(yaw.position);
 
     // Peso en el cuerpo: pasos más hondos, cabeza gacha y FOV un poco más cerrado
@@ -805,14 +1058,20 @@ export class DepressionRoom {
   }
 
   updateLamps(time, dt, pz) {
-    const n = this.lamps.length, P = CFG.spot.pool;
+    const n = this.lamps.length,
+      P = CFG.spot.pool;
     const spacing = (CFG.lampLastZ - CFG.lampFirstZ) / (n - 1);
-    const k = THREE.MathUtils.clamp(Math.round((pz - CFG.lampFirstZ) / spacing), 0, n - 1);
+    const k = THREE.MathUtils.clamp(
+      Math.round((pz - CFG.lampFirstZ) / spacing),
+      0,
+      n - 1,
+    );
 
     // Ventana de faroles con luz real: uno atrás y los 3 de adelante. El farol m
     // siempre lo maneja el spot (m % P), así solo uno cambia de farol por paso.
     const desired = new Array(P).fill(-1);
-    for (let m = k - 1; m <= k + P - 2; m++) if (m >= 0 && m < n) desired[m % P] = m;
+    for (let m = k - 1; m <= k + P - 2; m++)
+      if (m >= 0 && m < n) desired[m % P] = m;
 
     const boost = 1 + 0.25 * this.relief;
     this.spots.forEach((l, j) => {
@@ -831,7 +1090,19 @@ export class DepressionRoom {
       } else if (u.lamp >= 0) {
         u.level = Math.min(1, u.level + dt * 2.5);
       }
-      const flick = u.lamp >= 0 ? 1 - 0.18 * Math.pow(Math.max(0, Math.sin(time * 9.1 + u.lamp * 5.3) * Math.sin(time * 2.3 + u.lamp)), 6) : 1;
+      const flick =
+        u.lamp >= 0
+          ? 1 -
+            0.18 *
+              Math.pow(
+                Math.max(
+                  0,
+                  Math.sin(time * 9.1 + u.lamp * 5.3) *
+                    Math.sin(time * 2.3 + u.lamp),
+                ),
+                6,
+              )
+          : 1;
       l.intensity = CFG.spot.intensity * u.level * boost * flick;
     });
   }
@@ -873,7 +1144,6 @@ export class DepressionRoom {
     this.say("El peso cede. El tiempo sigue su curso incluso en la oscuridad.");
     this.audio?.playSoft?.(261);
 
-    
     this.exitDoorGroup.traverse((c) => {
       if (c.userData && c.userData.id === "entryDoor_depression") {
         c.userData.prompt = "Esta bien no estar bien. (Interactuar)";
@@ -884,10 +1154,16 @@ export class DepressionRoom {
   interact(object, uiPromptCallback) {
     const id = object.userData.id;
     if (id === "lockedDoor_depression") {
-      uiPromptCallback("Ya no hay vuelta atrás. No encontras el camino de regreso");
+      uiPromptCallback(
+        "Ya no hay vuelta atrás. No encontras el camino de regreso",
+      );
     } else if (id === "entryDoor_depression") {
       // main.js se encarga de la salida cuando isDoorUnlocked es true
-      uiPromptCallback(this.isDoorUnlocked ? "La puerta cede." : "La puerta pesa demasiado. Todavía no.");
+      uiPromptCallback(
+        this.isDoorUnlocked
+          ? "La puerta cede."
+          : "La puerta pesa demasiado. Todavía no.",
+      );
     }
   }
 
@@ -915,13 +1191,18 @@ export class DepressionRoom {
     const { px, pz } = this.updateMovement(dt);
 
     if (!this.resolved && pz <= this.lastLampZ) this.resolveRoom(time);
-    if (this.resolved) this.relief += (1 - this.relief) * (1 - Math.exp(-dt * 0.6));
+    if (this.resolved)
+      this.relief += (1 - this.relief) * (1 - Math.exp(-dt * 0.6));
 
     // Luz del usuario: sutil, un poco adelante y a la altura de la cintura (ve el piso inmediato)
     this.camera.getWorldDirection(this.camDir);
     this.camDir.y = 0;
     if (this.camDir.lengthSq() > 0) this.camDir.normalize();
-    this.playerLight.position.set(px + this.camDir.x * 0.5, 1.0, pz + this.camDir.z * 0.5);
+    this.playerLight.position.set(
+      px + this.camDir.x * 0.5,
+      1.0,
+      pz + this.camDir.z * 0.5,
+    );
 
     this.ambient.intensity = CFG.ambient.intensity * (1 + 0.5 * this.relief);
 

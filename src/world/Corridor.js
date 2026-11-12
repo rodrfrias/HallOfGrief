@@ -1185,8 +1185,6 @@ export class Corridor {
       });
     };
 
-  
-
     this.segments = [];
     const halfCount = 3; // 3 hacia atrás, el centro (0), y 3 hacia adelante = 7 segmentos
 
@@ -1305,7 +1303,6 @@ export class Corridor {
       segmentGroup.add(doorRight);
     }
   }
-
 
   removeDoorFromSegment(segmentGroup) {
     // Encontramos TODAS las puertas del segmento (ahora puede haber hasta 2)
